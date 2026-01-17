@@ -1,0 +1,59 @@
+# STAGING Environment Configuration
+# Generated: 2026-01-17T03:54:03.694116
+
+project_id: "ai-agent-platform-stg"
+team_name: "data-engineering"
+environment: "staging"
+
+# GCS Buckets
+gcs:
+  bucket_raw: "ai-agent-platform-raw-stg"
+  bucket_bronze: "ai-agent-platform-bronze-stg"
+  bucket_silver: "ai-agent-platform-silver-stg"
+  bucket_gold: "ai-agent-platform-gold-stg"
+  bucket_transient: "ai-agent-platform-transient-stg"
+  bucket_archive: "ai-agent-platform-archive-stg"
+
+# Dataproc Configuration
+dataproc:
+  cluster_name: "data-engineering-cluster-stg"
+  region: "us-central1"
+  zone: "us-central1-a"
+  master_machine_type: "n1-standard-4"
+  worker_machine_type: "n1-standard-4"
+  num_workers: 2
+  image_version: "2.1-debian11"
+
+# Cloud Composer Configuration
+composer:
+  environment_name: "data-engineering-composer-stg"
+  location: "us-central1"
+
+# Database Configuration
+database:
+  host: "ai-agent-platform-postgres-stg"
+  port: 5432
+  database: "pipeline_metadata"
+
+# Notification Configuration
+notifications:
+  slack_channel: "#data-engineering-alerts"
+  email_on_failure: "samrat.tidke@example.com"
+  jira_project: "DATA-ENGINEERING"
+
+# Airflow Configuration
+airflow:
+  default_args:
+    owner: "data-engineering"
+    depends_on_past: false
+    retries: 1
+    retry_delay_minutes: 5
+    email_on_failure: true
+    email_on_retry: false
+
+# Feature Flags
+features:
+  enable_data_quality_checks: true
+  enable_sla_monitoring: true
+  enable_lineage_tracking: true
+  enable_cost_tracking: true

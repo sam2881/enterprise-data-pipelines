@@ -1,0 +1,88 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [main, develop, 'feature/*']
+  pull_request:
+    branches: [main, develop]
+
+env:
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          pip install ruff black mypy
+
+      - name: Run linters
+        run: |
+          ruff check .
+          black --check .
+
+  test:
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pytest pytest-cov
+
+      - name: Run tests
+        run: |
+          pytest tests/ -v --cov=common --cov=dags --cov-report=xml
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage.xml
+
+  validate-dags:
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Airflow
+        run: |
+          pip install apache-airflow==2.7.0
+
+      - name: Validate DAGs
+        run: |
+          python -c "
+          import os
+          import sys
+          from airflow.models import DagBag
+
+          dag_bag = DagBag(dag_folder='dags', include_examples=False)
+
+          if dag_bag.import_errors:
+              print('DAG Import Errors:')
+              for dag_id, error in dag_bag.import_errors.items():
+                  print(f'  {dag_id}: {error}')
+              sys.exit(1)
+          else:
+              print(f'Successfully validated {len(dag_bag.dags)} DAGs')
+          "

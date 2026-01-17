@@ -1,0 +1,26 @@
+# Airflow Ignore File
+# Prevents Airflow from parsing non-DAG Python files
+
+# Common utilities - run on Dataproc, not Airflow
+common/
+
+# SQL files
+sql/
+
+# Configuration
+config/
+
+# Tests
+tests/
+
+# Documentation
+docs/
+*.md
+
+# Scripts
+scripts/
+
+# Python cache
+__pycache__/
+*.pyc
+.pytest_cache/

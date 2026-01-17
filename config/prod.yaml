@@ -1,0 +1,59 @@
+# PROD Environment Configuration
+# Generated: 2026-01-17T03:54:03.694271
+
+project_id: "ai-agent-platform"
+team_name: "data-engineering"
+environment: "prod"
+
+# GCS Buckets
+gcs:
+  bucket_raw: "ai-agent-platform-raw"
+  bucket_bronze: "ai-agent-platform-bronze"
+  bucket_silver: "ai-agent-platform-silver"
+  bucket_gold: "ai-agent-platform-gold"
+  bucket_transient: "ai-agent-platform-transient"
+  bucket_archive: "ai-agent-platform-archive"
+
+# Dataproc Configuration
+dataproc:
+  cluster_name: "data-engineering-cluster"
+  region: "us-central1"
+  zone: "us-central1-a"
+  master_machine_type: "n1-standard-8"
+  worker_machine_type: "n1-standard-8"
+  num_workers: 4
+  image_version: "2.1-debian11"
+
+# Cloud Composer Configuration
+composer:
+  environment_name: "data-engineering-composer"
+  location: "us-central1"
+
+# Database Configuration
+database:
+  host: "ai-agent-platform-postgres"
+  port: 5432
+  database: "pipeline_metadata"
+
+# Notification Configuration
+notifications:
+  slack_channel: "#data-engineering-alerts"
+  email_on_failure: "samrat.tidke@example.com"
+  jira_project: "DATA-ENGINEERING"
+
+# Airflow Configuration
+airflow:
+  default_args:
+    owner: "data-engineering"
+    depends_on_past: false
+    retries: 3
+    retry_delay_minutes: 5
+    email_on_failure: true
+    email_on_retry: false
+
+# Feature Flags
+features:
+  enable_data_quality_checks: true
+  enable_sla_monitoring: true
+  enable_lineage_tracking: true
+  enable_cost_tracking: true

@@ -1,0 +1,59 @@
+name: Deploy to DEV
+
+on:
+  push:
+    branches: [develop]
+
+env:
+  ENVIRONMENT: 'dev'
+  GCP_PROJECT: 'ai-agent-platform-dev'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: dev
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Deploy DAGs to Composer
+        run: |
+          COMPOSER_ENV="${{ env.GCP_PROJECT }}-composer"
+          BUCKET=$(gcloud composer environments describe $COMPOSER_ENV \
+            --location=us-central1 \
+            --format='value(config.dagGcsPrefix)')
+
+          # Sync DAGs
+          gsutil -m rsync -r -d dags/ $BUCKET/dags/
+
+          # Sync common modules
+          gsutil -m rsync -r -d common/ $BUCKET/plugins/common/
+
+      - name: Deploy Config
+        run: |
+          gsutil cp config/dev.yaml gs://${{ env.GCP_PROJECT }}-config/pipeline-config.yaml
+
+      - name: Notify Slack
+        if: always()
+        uses: slackapi/slack-github-action@v1
+        with:
+          channel-id: '#data-engineering-alerts'
+          slack-message: |
+            Deployment to DEV ${{ job.status }}
+            Repository: ${{ github.repository }}
+            Commit: ${{ github.sha }}
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
