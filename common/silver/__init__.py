@@ -1,17 +1,25 @@
 """
-Silver Layer Processing Module.
+Silver Layer - Type casting and validation.
 
-WHY: Silver layer contains cleansed, typed, and validated data.
-     This is the "single source of truth" for downstream processing.
+WHY LAZY IMPORTS: Airflow workers don't have PySpark installed.
+PySpark code runs on Dataproc, not Airflow. We use lazy imports to
+prevent ModuleNotFoundError when Airflow parses DAG files.
 
-HOW: SilverTransformer applies schema, data quality rules, and cleansing.
-     Invalid records are quarantined for review.
+HOW: Airflow submits jobs to Dataproc where PySpark is available.
+These modules are only imported when actually executed on Spark cluster.
 """
 
-# Lazy import to avoid PySpark dependency in Airflow
+
 def get_silver_transformer():
-    """Get SilverTransformer class (requires PySpark)."""
-    from .transformer import SilverTransformer
+    """Lazy import SilverTransformer to avoid PySpark import errors in Airflow."""
+    from .silver_transformer import SilverTransformer
     return SilverTransformer
 
-__all__ = ["get_silver_transformer"]
+
+# For backward compatibility - wrapped in try/except
+try:
+    from .silver_transformer import SilverTransformer
+except ImportError:
+    SilverTransformer = None
+
+__all__ = ["SilverTransformer", "get_silver_transformer"]

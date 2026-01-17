@@ -1,17 +1,25 @@
 """
-Bronze Layer Processing Module.
+Bronze Layer - Raw data ingestion.
 
-WHY: Bronze layer stores raw data with minimal transformation (all STRING types).
-     This preserves the original data for debugging and reprocessing.
+WHY LAZY IMPORTS: Airflow workers don't have PySpark installed.
+PySpark code runs on Dataproc, not Airflow. We use lazy imports to
+prevent ModuleNotFoundError when Airflow parses DAG files.
 
-HOW: BronzeLoader reads from source (GCS) and writes to Bronze bucket.
-     All columns are cast to STRING with audit columns added.
+HOW: Airflow submits jobs to Dataproc where PySpark is available.
+These modules are only imported when actually executed on Spark cluster.
 """
 
-# Lazy import to avoid PySpark dependency in Airflow
+
 def get_bronze_loader():
-    """Get BronzeLoader class (requires PySpark)."""
-    from .loader import BronzeLoader
+    """Lazy import BronzeLoader to avoid PySpark import errors in Airflow."""
+    from .bronze_loader import BronzeLoader
     return BronzeLoader
 
-__all__ = ["get_bronze_loader"]
+
+# For backward compatibility - wrapped in try/except
+try:
+    from .bronze_loader import BronzeLoader
+except ImportError:
+    BronzeLoader = None
+
+__all__ = ["BronzeLoader", "get_bronze_loader"]
