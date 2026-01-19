@@ -1,0 +1,311 @@
+# =============================================================================
+# Deploy DAGs and Spark Jobs to GCP Cloud Composer
+# =============================================================================
+# WHY: Automatically deploy generated pipeline artifacts to GCP Composer
+# HOW: On merge to main, validate DAGs and sync to Composer's GCS bucket
+#
+# ARCHITECTURE:
+#   Data Agent (ai_agent_app) → Creates PR → This Repo → CI/CD → GCP Composer
+#
+# REQUIRED SECRETS:
+#   - GCP_SA_KEY: Service account JSON key with Composer Admin permissions
+#   - GCP_PROJECT_ID: GCP project ID
+#   - COMPOSER_LOCATION: Composer region (e.g., us-central1)
+#   - SLACK_WEBHOOK_URL: (Optional) For notifications
+# =============================================================================
+
+name: Deploy to GCP Cloud Composer
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'dags/**'
+      - 'spark/**'
+      - 'sql/**'
+
+  pull_request:
+    branches: [main]
+    paths:
+      - 'dags/**'
+      - 'spark/**'
+
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+      dry_run:
+        description: 'Dry run (validate only)'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  PYTHON_VERSION: '3.11'
+  AIRFLOW_VERSION: '2.9.3'
+
+jobs:
+  # ===========================================================================
+  # Validate DAGs
+  # ===========================================================================
+  validate:
+    name: Validate DAGs
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-airflow-${{ env.AIRFLOW_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install apache-airflow==${{ env.AIRFLOW_VERSION }}
+          pip install apache-airflow-providers-google
+          pip install pyspark pandas structlog delta-spark
+
+      - name: Validate DAG syntax
+        run: |
+          echo "Validating DAGs..."
+
+          if [ ! -d "dags" ]; then
+            echo "No dags/ directory found"
+            exit 0
+          fi
+
+          python -c "
+          import sys
+          import os
+          os.environ['AIRFLOW_HOME'] = '/tmp/airflow'
+          os.makedirs('/tmp/airflow', exist_ok=True)
+
+          from airflow.models import DagBag
+
+          dag_bag = DagBag(dag_folder='dags', include_examples=False)
+
+          if dag_bag.import_errors:
+              print('❌ DAG Import Errors:')
+              for dag_id, error in dag_bag.import_errors.items():
+                  print(f'  {dag_id}: {error}')
+              sys.exit(1)
+
+          print(f'✅ Successfully validated {len(dag_bag.dags)} DAGs:')
+          for dag_id in dag_bag.dags:
+              print(f'  - {dag_id}')
+          "
+
+      - name: Lint Python files
+        run: |
+          pip install flake8
+          flake8 dags/ spark/ --max-line-length=120 --ignore=E501,W503 || true
+
+      - name: Security scan
+        run: |
+          echo "Running security checks..."
+
+          # Check for hardcoded secrets
+          for dir in dags spark; do
+            if [ -d "$dir" ]; then
+              if grep -rn "password\s*=" "$dir/" 2>/dev/null | grep -v "Variable.get" | grep -v "Secret"; then
+                echo "⚠️ WARNING: Possible hardcoded password in $dir/"
+              fi
+              if grep -rn "api_key\s*=" "$dir/" 2>/dev/null | grep -v "Variable.get"; then
+                echo "⚠️ WARNING: Possible hardcoded API key in $dir/"
+              fi
+            fi
+          done
+
+          echo "✅ Security scan complete"
+
+  # ===========================================================================
+  # Deploy to GCP Composer
+  # ===========================================================================
+  deploy:
+    name: Deploy to Composer
+    needs: validate
+    runs-on: ubuntu-latest
+    if: |
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run != 'true')
+
+    environment:
+      name: ${{ github.event.inputs.environment || 'dev' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set environment
+        run: |
+          ENV="${{ github.event.inputs.environment || 'dev' }}"
+          echo "DEPLOY_ENV=$ENV" >> $GITHUB_ENV
+
+          case $ENV in
+            dev)
+              echo "COMPOSER_ENV=data-pipelines-dev" >> $GITHUB_ENV
+              ;;
+            staging)
+              echo "COMPOSER_ENV=data-pipelines-staging" >> $GITHUB_ENV
+              ;;
+            prod)
+              echo "COMPOSER_ENV=data-pipelines-prod" >> $GITHUB_ENV
+              ;;
+          esac
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Get Composer bucket
+        id: composer
+        run: |
+          echo "Getting Composer environment info..."
+
+          DAGS_FOLDER=$(gcloud composer environments describe ${{ env.COMPOSER_ENV }} \
+            --location=${{ secrets.COMPOSER_LOCATION || 'us-central1' }} \
+            --format="value(config.dagGcsPrefix)" 2>/dev/null || echo "")
+
+          if [ -z "$DAGS_FOLDER" ]; then
+            echo "⚠️ Could not get Composer DAGs folder"
+            echo "Make sure the Composer environment exists"
+
+            # Fallback to direct GCS bucket
+            DAGS_FOLDER="gs://${{ secrets.GCP_PROJECT_ID }}-composer-dags/dags"
+          fi
+
+          echo "dags_folder=${DAGS_FOLDER}" >> $GITHUB_OUTPUT
+          echo "📁 Composer DAGs folder: $DAGS_FOLDER"
+
+      - name: Deploy DAGs
+        run: |
+          echo "🚀 Deploying DAGs to Composer..."
+
+          if [ -d "dags" ] && [ "$(ls -A dags 2>/dev/null)" ]; then
+            echo "Syncing dags/ to ${{ steps.composer.outputs.dags_folder }}/"
+
+            # Use rsync with delete to mirror the folder
+            gsutil -m rsync -r -d dags/ ${{ steps.composer.outputs.dags_folder }}/
+
+            echo "✅ DAGs deployed successfully"
+          else
+            echo "⚠️ No dags/ directory found"
+          fi
+
+      - name: Deploy Spark jobs
+        run: |
+          echo "🚀 Deploying Spark jobs..."
+
+          SPARK_BUCKET="gs://${{ secrets.GCP_PROJECT_ID }}-gold/spark"
+
+          if [ -d "spark" ] && [ "$(ls -A spark 2>/dev/null)" ]; then
+            echo "Syncing spark/ to $SPARK_BUCKET/"
+            gsutil -m rsync -r -d spark/ $SPARK_BUCKET/
+            echo "✅ Spark jobs deployed"
+          else
+            echo "⚠️ No spark/ directory found"
+          fi
+
+      - name: Deploy SQL scripts
+        run: |
+          echo "🚀 Deploying SQL scripts..."
+
+          SQL_BUCKET="gs://${{ secrets.GCP_PROJECT_ID }}-gold/sql"
+
+          if [ -d "sql" ] && [ "$(ls -A sql 2>/dev/null)" ]; then
+            echo "Syncing sql/ to $SQL_BUCKET/"
+            gsutil -m rsync -r -d sql/ $SQL_BUCKET/
+            echo "✅ SQL scripts deployed"
+          fi
+
+      - name: Verify deployment
+        run: |
+          echo "🔍 Verifying deployment..."
+
+          echo "Deployed DAGs:"
+          gsutil ls ${{ steps.composer.outputs.dags_folder }}/*.py 2>/dev/null || echo "  None"
+
+          echo ""
+          echo "Deployed Spark jobs:"
+          gsutil ls gs://${{ secrets.GCP_PROJECT_ID }}-gold/spark/*.py 2>/dev/null || echo "  None"
+
+      - name: Post summary
+        run: |
+          echo "## 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Environment | ${{ env.DEPLOY_ENV }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Composer | ${{ env.COMPOSER_ENV }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| DAGs Folder | ${{ steps.composer.outputs.dags_folder }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Commit | ${{ github.sha }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Deployed Files" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          ls -la dags/ 2>/dev/null || echo "No DAGs"
+          ls -la spark/ 2>/dev/null || echo "No Spark jobs"
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  # ===========================================================================
+  # Notify
+  # ===========================================================================
+  notify:
+    name: Notify
+    needs: [validate, deploy]
+    runs-on: ubuntu-latest
+    if: always() && github.event_name == 'push'
+
+    steps:
+      - name: Send notification
+        if: env.SLACK_WEBHOOK_URL != ''
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          STATUS="${{ needs.deploy.result }}"
+          if [ "$STATUS" == "success" ]; then
+            COLOR="good"
+            EMOJI="✅"
+            TEXT="Pipeline artifacts deployed successfully"
+          else
+            COLOR="danger"
+            EMOJI="❌"
+            TEXT="Pipeline deployment failed"
+          fi
+
+          curl -X POST $SLACK_WEBHOOK_URL \
+            -H 'Content-type: application/json' \
+            -d "{
+              \"attachments\": [{
+                \"color\": \"$COLOR\",
+                \"title\": \"$EMOJI Data Pipeline Deployment\",
+                \"text\": \"$TEXT\",
+                \"fields\": [
+                  {\"title\": \"Repository\", \"value\": \"${{ github.repository }}\", \"short\": true},
+                  {\"title\": \"Branch\", \"value\": \"${{ github.ref_name }}\", \"short\": true},
+                  {\"title\": \"Commit\", \"value\": \"${{ github.sha }}\", \"short\": true},
+                  {\"title\": \"Author\", \"value\": \"${{ github.actor }}\", \"short\": true}
+                ]
+              }]
+            }"
