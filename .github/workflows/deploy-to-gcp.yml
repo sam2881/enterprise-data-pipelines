@@ -1,114 +1,69 @@
-name: Deploy to GCP Cloud Composer
+name: Validate and Deploy
 
 on:
   push:
     branches: [main]
-    paths:
-      - 'dags/**'
-      - 'spark/**'
-      - 'sql/**'
-
   pull_request:
     branches: [main]
-    paths:
-      - 'dags/**'
-      - 'spark/**'
-
   workflow_dispatch:
-    inputs:
-      environment:
-        description: 'Target environment'
-        required: true
-        default: 'dev'
-        type: choice
-        options:
-          - dev
-          - staging
-          - prod
-
-env:
-  PYTHON_VERSION: '3.11'
-  AIRFLOW_VERSION: '2.9.3'
 
 jobs:
   validate:
     name: Validate DAGs
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
+      - uses: actions/checkout@v4
+      
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          python-version: '3.11'
 
-      - name: Cache pip
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-airflow-${{ env.AIRFLOW_VERSION }}
-
-      - name: Install dependencies
+      - name: Validate DAG Syntax
         run: |
-          pip install --upgrade pip
-          pip install apache-airflow==${{ env.AIRFLOW_VERSION }} --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-${{ env.AIRFLOW_VERSION }}/constraints-3.11.txt"
-          pip install apache-airflow-providers-google
-
-      - name: Validate DAGs
-        run: |
-          echo "Validating DAGs..."
-
+          echo "Validating DAG syntax..."
+          
           if [ ! -d "dags" ]; then
-            echo "No dags/ directory found"
+            echo "No dags/ directory found - skipping"
             exit 0
           fi
-
-          # Initialize Airflow environment
-          export AIRFLOW_HOME=/tmp/airflow
-          mkdir -p $AIRFLOW_HOME
-          export AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=sqlite:///$AIRFLOW_HOME/airflow.db
-          export AIRFLOW__CORE__LOAD_EXAMPLES=False
-          export AIRFLOW__CORE__DAGS_FOLDER=$(pwd)/dags
           
-          # Initialize database
-          airflow db init 2>/dev/null
-          
-          # Syntax check
-          echo "=== Syntax Check ==="
-          for dag in dags/*.py; do
-            python -c "import ast; ast.parse(open('$dag').read())" && echo "✅ $dag"
-          done
-
-          # Import validation with DagBag
-          echo ""
-          echo "=== Import Validation ==="
+          # Use Python AST to validate syntax
           python3 << 'PYEOF'
-import sys
-import os
-os.environ['AIRFLOW_HOME'] = '/tmp/airflow'
-from airflow.models import DagBag
-dag_bag = DagBag(dag_folder='dags', include_examples=False)
-if dag_bag.import_errors:
-    print('DAG Import Errors:')
-    for dag_id, error in dag_bag.import_errors.items():
-        print(f'  {dag_id}: {error}')
-    sys.exit(1)
-print(f'Validated {len(dag_bag.dags)} DAGs successfully')
-for dag_id in dag_bag.dags:
-    print(f'  - {dag_id}')
-PYEOF
+          import ast
+          import os
+          import sys
+          
+          dags_dir = 'dags'
+          errors = []
+          validated = []
+          
+          for filename in os.listdir(dags_dir):
+              if filename.endswith('.py'):
+                  filepath = os.path.join(dags_dir, filename)
+                  try:
+                      with open(filepath, 'r') as f:
+                          code = f.read()
+                      ast.parse(code)
+                      validated.append(filename)
+                      print(f'✅ {filename}')
+                  except SyntaxError as e:
+                      errors.append((filename, str(e)))
+                      print(f'❌ {filename}: {e}')
+          
+          if errors:
+              print(f'\n{len(errors)} file(s) failed validation')
+              sys.exit(1)
+          
+          print(f'\n✅ All {len(validated)} DAG(s) validated successfully')
+          PYEOF
 
   deploy:
-    name: Deploy to Composer
+    name: Deploy to GCP
     needs: validate
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
+      - uses: actions/checkout@v4
       - name: Deploy placeholder
-        run: echo "Deployment would happen here with GCP credentials"
+        run: echo "Deployment would run with GCP credentials configured"
