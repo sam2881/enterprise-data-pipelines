@@ -1,0 +1,86 @@
+{
+  "intent_version": "1.0.0",
+  "created_at": "2024-01-15T10:00:00Z",
+  "created_by": "test_user",
+  "jira_ticket": "DATA-123",
+  "pipeline_identity": {
+    "pipeline_name": "customer_orders",
+    "domain": "sales",
+    "environment": "dev"
+  },
+  "source_config": {
+    "source_type": "file",
+    "source_system": "erp_exports",
+    "processing_mode": "batch",
+    "cdc_enabled": false,
+    "landing_path": "gs://data-lake/landing/sales/orders/",
+    "file_pattern": "orders_*.csv",
+    "file_format": "csv",
+    "delimiter": ",",
+    "header": true
+  },
+  "schema_definition": {
+    "columns": [
+      {"name": "order_id", "type": "STRING", "nullable": false},
+      {"name": "customer_id", "type": "STRING", "nullable": false},
+      {"name": "order_date", "type": "DATE", "nullable": false},
+      {"name": "total_amount", "type": "DECIMAL(18,2)", "nullable": false},
+      {"name": "status", "type": "STRING", "nullable": true}
+    ],
+    "primary_key": ["order_id"],
+    "partition_columns": ["order_date"]
+  },
+  "transformation_rules": {
+    "rules": [
+      {
+        "rule_name": "cast_order_date",
+        "rule_type": "cast",
+        "source_column": "order_date",
+        "target_column": "order_date",
+        "expression": "TO_DATE(order_date, 'yyyy-MM-dd')"
+      },
+      {
+        "rule_name": "default_status",
+        "rule_type": "derive",
+        "source_column": "status",
+        "target_column": "status",
+        "expression": "COALESCE(status, 'UNKNOWN')"
+      }
+    ]
+  },
+  "data_quality_rules": [
+    {
+      "rule_name": "order_id_not_null",
+      "rule_type": "not_null",
+      "column_name": "order_id",
+      "severity": "error",
+      "is_blocking": true
+    },
+    {
+      "rule_name": "total_amount_positive",
+      "rule_type": "range",
+      "column_name": "total_amount",
+      "expression": "total_amount >= 0",
+      "severity": "warning",
+      "is_blocking": false
+    }
+  ],
+  "target_config": {
+    "bronze_table": "bronze.sales.orders",
+    "silver_table": "silver.sales.orders",
+    "gold_dataset": "gold_sales",
+    "gold_table": "orders",
+    "write_mode": "append"
+  },
+  "execution_policy": {
+    "schedule": "0 6 * * *",
+    "sla_minutes": 60,
+    "retry_count": 3,
+    "retry_delay_minutes": 5,
+    "human_approval_required": false,
+    "notifications": {
+      "on_success": ["data-team@company.com"],
+      "on_failure": ["data-oncall@company.com"]
+    }
+  }
+}

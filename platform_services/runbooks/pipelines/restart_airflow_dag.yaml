@@ -1,0 +1,84 @@
+# ==============================================================================
+# METADATA
+# ==============================================================================
+# name: Restart Failed Airflow DAG
+# description: Clear and restart a failed Airflow DAG run
+# service: airflow
+# component: dag
+# action: restart
+# risk: low
+# requires_approval: false
+# estimated_time_minutes: 5
+# tags: [airflow, dag, pipeline, restart, clear]
+# error_patterns:
+#   - "dag.*failed"
+#   - "task.*failed"
+#   - "airflow.*error"
+# keywords: [airflow, dag, pipeline, task, failed, retry, clear]
+# pre_checks: [check_dag_exists, verify_airflow_running]
+# post_checks: [verify_dag_running, check_task_status]
+# ==============================================================================
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: restart-airflow-dag-{{ dag_id }}
+  namespace: {{ namespace | default('airflow') }}
+spec:
+  template:
+    spec:
+      serviceAccountName: airflow-operator
+      restartPolicy: Never
+      containers:
+        - name: airflow-cli
+          image: apache/airflow:2.7.0
+          command:
+            - /bin/bash
+            - -c
+            - |
+              set -e
+
+              DAG_ID="{{ dag_id }}"
+              EXECUTION_DATE="{{ execution_date | default('') }}"
+
+              echo "=== Airflow DAG Restart Runbook ==="
+              echo "DAG: $DAG_ID"
+
+              echo "=== PRE-CHECK: Verify DAG exists ==="
+              airflow dags list | grep -q "$DAG_ID" || { echo "DAG not found"; exit 1; }
+
+              echo "=== Current DAG State ==="
+              airflow dags state "$DAG_ID"
+
+              if [ -n "$EXECUTION_DATE" ]; then
+                echo "=== Clearing specific run: $EXECUTION_DATE ==="
+                airflow tasks clear "$DAG_ID" \
+                  --start-date "$EXECUTION_DATE" \
+                  --end-date "$EXECUTION_DATE" \
+                  --yes
+              else
+                echo "=== Clearing failed tasks from last 24 hours ==="
+                airflow tasks clear "$DAG_ID" \
+                  --start-date "$(date -d '24 hours ago' +%Y-%m-%dT%H:%M:%S)" \
+                  --only-failed \
+                  --yes
+              fi
+
+              echo "=== Triggering DAG run ==="
+              airflow dags trigger "$DAG_ID"
+
+              echo "=== Waiting for DAG to start ==="
+              sleep 10
+
+              echo "=== POST-CHECK: DAG Status ==="
+              airflow dags state "$DAG_ID"
+
+              echo "=== DAG restart completed ==="
+          env:
+            - name: AIRFLOW__CORE__EXECUTOR
+              value: "KubernetesExecutor"
+            - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
+              valueFrom:
+                secretKeyRef:
+                  name: airflow-secrets
+                  key: sql_alchemy_conn

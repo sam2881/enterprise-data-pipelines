@@ -1,0 +1,117 @@
+# ==============================================================================
+# METADATA
+# ==============================================================================
+# name: Fix Memory Leak - Service Restart
+# description: Restart service experiencing memory leak with proper drain
+# service: application
+# component: memory
+# action: restart
+# risk: medium
+# requires_approval: true
+# estimated_time_minutes: 15
+# tags: [memory, leak, oom, restart, drain]
+# error_patterns:
+#   - "out.*of.*memory"
+#   - "oom.*killer"
+#   - "memory.*exhausted"
+#   - "cannot.*allocate"
+# keywords: [memory, leak, oom, ram, heap, gc, restart]
+# pre_checks: [capture_memory_usage, check_service_health]
+# post_checks: [verify_memory_reduced, verify_service_healthy]
+# rollback_script: ansible/emergency_restart.yml
+# ==============================================================================
+---
+- name: Fix Memory Leak via Controlled Service Restart
+  hosts: app_servers
+  become: yes
+  vars:
+    service_name: "{{ target_service | default('application') }}"
+    memory_threshold_mb: 4096
+    drain_timeout_seconds: 60
+
+  pre_tasks:
+    - name: "[PRE-CHECK] Capture current memory usage"
+      shell: "free -m | awk '/^Mem:/{print $3}'"
+      register: memory_before
+
+    - name: "[PRE-CHECK] Get process memory"
+      shell: "ps aux --sort=-%mem | head -10"
+      register: top_processes
+
+    - name: "[PRE-CHECK] Check service status"
+      systemd:
+        name: "{{ service_name }}"
+      register: service_status
+
+    - name: Display memory analysis
+      debug:
+        msg: |
+          Current Memory Usage: {{ memory_before.stdout }} MB
+          Service Status: {{ service_status.status.ActiveState }}
+          Top Memory Consumers:
+          {{ top_processes.stdout }}
+
+  tasks:
+    - name: Send SIGTERM to allow graceful shutdown
+      shell: "kill -TERM $(pgrep -f {{ service_name }}) || true"
+      ignore_errors: yes
+
+    - name: Wait for graceful shutdown
+      wait_for:
+        path: "/var/run/{{ service_name }}.pid"
+        state: absent
+        timeout: "{{ drain_timeout_seconds }}"
+      ignore_errors: yes
+
+    - name: Force stop service if still running
+      systemd:
+        name: "{{ service_name }}"
+        state: stopped
+      register: stop_result
+
+    - name: Clear system cache to free memory
+      shell: |
+        sync
+        echo 3 > /proc/sys/vm/drop_caches
+
+    - name: Wait for memory to be reclaimed
+      pause:
+        seconds: 10
+
+    - name: Start service
+      systemd:
+        name: "{{ service_name }}"
+        state: started
+
+    - name: Wait for service to be ready
+      wait_for:
+        port: "{{ service_port | default(8080) }}"
+        delay: 5
+        timeout: 120
+
+  post_tasks:
+    - name: "[POST-CHECK] Capture new memory usage"
+      shell: "free -m | awk '/^Mem:/{print $3}'"
+      register: memory_after
+
+    - name: "[POST-CHECK] Verify service is healthy"
+      uri:
+        url: "http://127.0.0.1:{{ service_port | default(8080) }}/health"
+        method: GET
+        timeout: 10
+      register: health_check
+      retries: 3
+      delay: 5
+
+    - name: Calculate memory freed
+      set_fact:
+        memory_freed: "{{ memory_before.stdout | int - memory_after.stdout | int }}"
+
+    - name: Summary
+      debug:
+        msg: |
+          === MEMORY LEAK REMEDIATION COMPLETE ===
+          Memory Before: {{ memory_before.stdout }} MB
+          Memory After: {{ memory_after.stdout }} MB
+          Memory Freed: {{ memory_freed }} MB
+          Service Health: {{ 'HEALTHY' if health_check.status == 200 else 'UNHEALTHY' }}

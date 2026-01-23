@@ -1,0 +1,142 @@
+---
+# METADATA
+# service: database
+# action: optimize
+# component: postgresql
+# keywords: [database, cpu, high, spike, slow, queries, postgresql, mysql, optimization]
+# risk: medium
+# requires_approval: true
+# estimated_time: 15m
+# rollback: rollback_db_optimization.yml
+# version: 1.1.0
+# author: dba-team
+# last_updated: 2024-02-10
+
+- name: Fix Database High CPU Usage
+  hosts: database_servers
+  become: yes
+  gather_facts: yes
+
+  vars:
+    db_type: postgresql
+    db_user: postgres
+    max_connections_threshold: 100
+    cpu_threshold: 80
+    slow_query_threshold: 5000  # milliseconds
+
+  pre_tasks:
+    - name: "[PRE-CHECK] Capture current CPU usage"
+      shell: top -bn1 | grep "Cpu(s)" | awk '{print $2}'
+      register: cpu_before
+      changed_when: false
+
+    - name: "[PRE-CHECK] Get current connection count"
+      shell: psql -U {{ db_user }} -c "SELECT count(*) FROM pg_stat_activity;" -t
+      register: conn_count
+      changed_when: false
+      become_user: postgres
+
+    - name: "[PRE-CHECK] Identify long running queries"
+      shell: |
+        psql -U {{ db_user }} -c "
+        SELECT pid, now() - pg_stat_activity.query_start AS duration, query
+        FROM pg_stat_activity
+        WHERE (now() - pg_stat_activity.query_start) > interval '5 minutes'
+        AND state != 'idle'
+        ORDER BY duration DESC
+        LIMIT 10;" -t
+      register: long_queries
+      changed_when: false
+      become_user: postgres
+
+    - name: "[PRE-CHECK] Log baseline metrics"
+      debug:
+        msg: |
+          CPU Before: {{ cpu_before.stdout }}%
+          Active Connections: {{ conn_count.stdout | trim }}
+          Long Running Queries: {{ long_queries.stdout_lines | length }}
+
+  tasks:
+    - name: "[ACTION] Terminate idle connections older than 30 minutes"
+      shell: |
+        psql -U {{ db_user }} -c "
+        SELECT pg_terminate_backend(pid)
+        FROM pg_stat_activity
+        WHERE state = 'idle'
+        AND query_start < now() - interval '30 minutes'
+        AND pid != pg_backend_pid();"
+      become_user: postgres
+      register: terminated_idle
+
+    - name: "[ACTION] Cancel queries running longer than 10 minutes"
+      shell: |
+        psql -U {{ db_user }} -c "
+        SELECT pg_cancel_backend(pid)
+        FROM pg_stat_activity
+        WHERE state = 'active'
+        AND query_start < now() - interval '10 minutes'
+        AND pid != pg_backend_pid();"
+      become_user: postgres
+      register: cancelled_queries
+      when: long_queries.stdout_lines | length > 0
+
+    - name: "[ACTION] Run VACUUM ANALYZE on high-traffic tables"
+      shell: |
+        psql -U {{ db_user }} -c "
+        SELECT schemaname || '.' || relname as table_name
+        FROM pg_stat_user_tables
+        WHERE n_dead_tup > 1000
+        ORDER BY n_dead_tup DESC
+        LIMIT 5;" -t | while read table; do
+          if [ ! -z "$table" ]; then
+            psql -U {{ db_user }} -c "VACUUM ANALYZE $table;"
+          fi
+        done
+      become_user: postgres
+      register: vacuum_result
+      async: 300
+      poll: 30
+
+    - name: "[ACTION] Reload PostgreSQL configuration"
+      systemd:
+        name: postgresql
+        state: reloaded
+
+    - name: "[ACTION] Wait for stabilization"
+      pause:
+        seconds: 30
+
+  post_tasks:
+    - name: "[POST-CHECK] Capture CPU usage after fix"
+      shell: top -bn1 | grep "Cpu(s)" | awk '{print $2}'
+      register: cpu_after
+      changed_when: false
+
+    - name: "[POST-CHECK] Verify connection count"
+      shell: psql -U {{ db_user }} -c "SELECT count(*) FROM pg_stat_activity;" -t
+      register: conn_after
+      changed_when: false
+      become_user: postgres
+
+    - name: "[POST-CHECK] Verify database responding"
+      shell: psql -U {{ db_user }} -c "SELECT 1;" -t
+      register: db_ping
+      retries: 3
+      delay: 5
+      until: db_ping.rc == 0
+      become_user: postgres
+
+    - name: "[VALIDATION] Final status report"
+      debug:
+        msg: |
+          ============================================
+          DATABASE CPU OPTIMIZATION COMPLETED
+          ============================================
+          CPU Before: {{ cpu_before.stdout }}%
+          CPU After: {{ cpu_after.stdout }}%
+          Connections Before: {{ conn_count.stdout | trim }}
+          Connections After: {{ conn_after.stdout | trim }}
+          Idle Terminated: {{ terminated_idle.stdout_lines | length }}
+          Queries Cancelled: {{ cancelled_queries.stdout_lines | default([]) | length }}
+          Database Ping: {{ 'OK' if db_ping.rc == 0 else 'FAILED' }}
+          ============================================

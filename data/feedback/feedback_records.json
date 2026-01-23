@@ -1,0 +1,380 @@
+[
+  {
+    "feedback_id": "fb_1764946889_INC001",
+    "incident_id": "INC001",
+    "incident_type": "vm_down",
+    "severity": "high",
+    "service": "gcp",
+    "environment": "prod",
+    "query": "VM not responding",
+    "weights_used": {
+      "semantic": 0.4,
+      "keyword": 0.3
+    },
+    "recommended_script_id": "script-start-vm",
+    "recommendation_rank": 1,
+    "executed": false,
+    "success": false,
+    "execution_time_seconds": 0.0,
+    "error_message": "",
+    "created_at": "2025-12-05T15:01:29.106614",
+    "executed_at": ""
+  },
+  {
+    "feedback_id": "fb_1764947019_INC001",
+    "incident_id": "INC001",
+    "incident_type": "vm_down",
+    "severity": "high",
+    "service": "gcp",
+    "environment": "prod",
+    "query": "VM not responding",
+    "weights_used": {
+      "semantic": 0.4,
+      "keyword": 0.3
+    },
+    "recommended_script_id": "script-start-vm",
+    "recommendation_rank": 1,
+    "executed": false,
+    "success": false,
+    "execution_time_seconds": 0.0,
+    "error_message": "",
+    "created_at": "2025-12-05T15:03:39.591158",
+    "executed_at": ""
+  },
+  {
+    "feedback_id": "fb_1764947050_INC001",
+    "incident_id": "INC001",
+    "incident_type": "vm_down",
+    "severity": "high",
+    "service": "gcp",
+    "environment": "prod",
+    "query": "VM not responding",
+    "weights_used": {
+      "semantic": 0.4,
+      "keyword": 0.3
+    },
+    "recommended_script_id": "script-start-vm",
+    "recommendation_rank": 1,
+    "executed": false,
+    "success": false,
+    "execution_time_seconds": 0.0,
+    "error_message": "",
+    "created_at": "2025-12-05T15:04:10.157460",
+    "executed_at": ""
+  },
+  {
+    "feedback_id": "fb_1767108039_INC001",
+    "incident_id": "INC001",
+    "incident_type": "vm_down",
+    "severity": "high",
+    "service": "gcp",
+    "environment": "prod",
+    "query": "VM not responding",
+    "weights_used": {
+      "semantic": 0.4,
+      "keyword": 0.3
+    },
+    "recommended_script_id": "script-start-vm",
+    "recommendation_rank": 1,
+    "executed": false,
+    "success": false,
+    "execution_time_seconds": 0.0,
+    "error_message": "",
+    "created_at": "2025-12-30T15:20:39.628280",
+    "executed_at": ""
+  },
+  {
+    "feedback_id": "fb_1767108328_INC001",
+    "incident_id": "INC001",
+    "incident_type": "vm_down",
+    "severity": "high",
+    "service": "gcp",
+    "environment": "prod",
+    "query": "VM not responding",
+    "weights_used": {
+      "semantic": 0.4,
+      "keyword": 0.3
+    },
+    "recommended_script_id": "script-start-vm",
+    "recommendation_rank": 1,
+    "executed": false,
+    "success": false,
+    "execution_time_seconds": 0.0,
+    "error_message": "",
+    "created_at": "2025-12-30T15:25:28.478439",
+    "executed_at": ""
+  },
+  {
+    "feedback_id": "fb_1767108443_INC001",
+    "incident_id": "INC001",
+    "incident_type": "vm_down",
+    "severity": "high",
+    "service": "gcp",
+    "environment": "prod",
+    "query": "VM not responding",
+    "weights_used": {
+      "semantic": 0.4,
+      "keyword": 0.3
+    },
+    "recommended_script_id": "script-start-vm",
+    "recommendation_rank": 1,
+    "executed": false,
+    "success": false,
+    "execution_time_seconds": 0.0,
+    "error_message": "",
+    "created_at": "2025-12-30T15:27:23.744463",
+    "executed_at": ""
+  },
+  {
+    "feedback_id": "fb_1767108524_INC001",
+    "incident_id": "INC001",
+    "incident_type": "vm_down",
+    "severity": "high",
+    "service": "gcp",
+    "environment": "prod",
+    "query": "VM not responding",
+    "weights_used": {
+      "semantic": 0.4,
+      "keyword": 0.3
+    },
+    "recommended_script_id": "script-start-vm",
+    "recommendation_rank": 1,
+    "executed": false,
+    "success": false,
+    "execution_time_seconds": 0.0,
+    "error_message": "",
+    "created_at": "2025-12-30T15:28:44.814278",
+    "executed_at": ""
+  },
+  {
+    "feedback_id": "fb_1767163003_INC001",
+    "incident_id": "INC001",
+    "incident_type": "vm_down",
+    "severity": "high",
+    "service": "gcp",
+    "environment": "prod",
+    "query": "VM not responding",
+    "weights_used": {
+      "semantic": 0.4,
+      "keyword": 0.3
+    },
+    "recommended_script_id": "script-start-vm",
+    "recommendation_rank": 1,
+    "executed": false,
+    "success": false,
+    "execution_time_seconds": 0.0,
+    "error_message": "",
+    "created_at": "2025-12-31T06:36:43.410599",
+    "executed_at": ""
+  },
+  {
+    "feedback_id": "fb_1768756534_INC001",
+    "incident_id": "INC001",
+    "incident_type": "vm_down",
+    "severity": "high",
+    "service": "gcp",
+    "environment": "prod",
+    "query": "VM not responding",
+    "weights_used": {
+      "semantic": 0.4,
+      "keyword": 0.3
+    },
+    "recommended_script_id": "script-start-vm",
+    "recommendation_rank": 1,
+    "executed": false,
+    "success": false,
+    "execution_time_seconds": 0.0,
+    "error_message": "",
+    "created_at": "2026-01-18T17:15:34.178248",
+    "executed_at": ""
+  },
+  {
+    "feedback_id": "fb_1768756567_INC001",
+    "incident_id": "INC001",
+    "incident_type": "vm_down",
+    "severity": "high",
+    "service": "gcp",
+    "environment": "prod",
+    "query": "VM not responding",
+    "weights_used": {
+      "semantic": 0.4,
+      "keyword": 0.3
+    },
+    "recommended_script_id": "script-start-vm",
+    "recommendation_rank": 1,
+    "executed": false,
+    "success": false,
+    "execution_time_seconds": 0.0,
+    "error_message": "",
+    "created_at": "2026-01-18T17:16:07.524527",
+    "executed_at": ""
+  },
+  {
+    "feedback_id": "fb_1768756724_INC001",
+    "incident_id": "INC001",
+    "incident_type": "vm_down",
+    "severity": "high",
+    "service": "gcp",
+    "environment": "prod",
+    "query": "VM not responding",
+    "weights_used": {
+      "semantic": 0.4,
+      "keyword": 0.3
+    },
+    "recommended_script_id": "script-start-vm",
+    "recommendation_rank": 1,
+    "executed": false,
+    "success": false,
+    "execution_time_seconds": 0.0,
+    "error_message": "",
+    "created_at": "2026-01-18T17:18:44.441096",
+    "executed_at": ""
+  },
+  {
+    "feedback_id": "fb_1768756782_INC001",
+    "incident_id": "INC001",
+    "incident_type": "vm_down",
+    "severity": "high",
+    "service": "gcp",
+    "environment": "prod",
+    "query": "VM not responding",
+    "weights_used": {
+      "semantic": 0.4,
+      "keyword": 0.3
+    },
+    "recommended_script_id": "script-start-vm",
+    "recommendation_rank": 1,
+    "executed": false,
+    "success": false,
+    "execution_time_seconds": 0.0,
+    "error_message": "",
+    "created_at": "2026-01-18T17:19:42.202274",
+    "executed_at": ""
+  },
+  {
+    "feedback_id": "fb_1768756970_INC001",
+    "incident_id": "INC001",
+    "incident_type": "vm_down",
+    "severity": "high",
+    "service": "gcp",
+    "environment": "prod",
+    "query": "VM not responding",
+    "weights_used": {
+      "semantic": 0.4,
+      "keyword": 0.3
+    },
+    "recommended_script_id": "script-start-vm",
+    "recommendation_rank": 1,
+    "executed": false,
+    "success": false,
+    "execution_time_seconds": 0.0,
+    "error_message": "",
+    "created_at": "2026-01-18T17:22:50.483957",
+    "executed_at": ""
+  },
+  {
+    "feedback_id": "fb_1768756995_INC001",
+    "incident_id": "INC001",
+    "incident_type": "vm_down",
+    "severity": "high",
+    "service": "gcp",
+    "environment": "prod",
+    "query": "VM not responding",
+    "weights_used": {
+      "semantic": 0.4,
+      "keyword": 0.3
+    },
+    "recommended_script_id": "script-start-vm",
+    "recommendation_rank": 1,
+    "executed": false,
+    "success": false,
+    "execution_time_seconds": 0.0,
+    "error_message": "",
+    "created_at": "2026-01-18T17:23:15.952177",
+    "executed_at": ""
+  },
+  {
+    "feedback_id": "fb_1768758947_INC001",
+    "incident_id": "INC001",
+    "incident_type": "vm_down",
+    "severity": "high",
+    "service": "gcp",
+    "environment": "prod",
+    "query": "VM not responding",
+    "weights_used": {
+      "semantic": 0.4,
+      "keyword": 0.3
+    },
+    "recommended_script_id": "script-start-vm",
+    "recommendation_rank": 1,
+    "executed": false,
+    "success": false,
+    "execution_time_seconds": 0.0,
+    "error_message": "",
+    "created_at": "2026-01-18T17:55:47.629790",
+    "executed_at": ""
+  },
+  {
+    "feedback_id": "fb_1768758978_INC001",
+    "incident_id": "INC001",
+    "incident_type": "vm_down",
+    "severity": "high",
+    "service": "gcp",
+    "environment": "prod",
+    "query": "VM not responding",
+    "weights_used": {
+      "semantic": 0.4,
+      "keyword": 0.3
+    },
+    "recommended_script_id": "script-start-vm",
+    "recommendation_rank": 1,
+    "executed": false,
+    "success": false,
+    "execution_time_seconds": 0.0,
+    "error_message": "",
+    "created_at": "2026-01-18T17:56:18.095432",
+    "executed_at": ""
+  },
+  {
+    "feedback_id": "fb_1768806686_INC001",
+    "incident_id": "INC001",
+    "incident_type": "vm_down",
+    "severity": "high",
+    "service": "gcp",
+    "environment": "prod",
+    "query": "VM not responding",
+    "weights_used": {
+      "semantic": 0.4,
+      "keyword": 0.3
+    },
+    "recommended_script_id": "script-start-vm",
+    "recommendation_rank": 1,
+    "executed": false,
+    "success": false,
+    "execution_time_seconds": 0.0,
+    "error_message": "",
+    "created_at": "2026-01-19T07:11:26.581253",
+    "executed_at": ""
+  },
+  {
+    "feedback_id": "fb_1768807450_INC001",
+    "incident_id": "INC001",
+    "incident_type": "vm_down",
+    "severity": "high",
+    "service": "gcp",
+    "environment": "prod",
+    "query": "VM not responding",
+    "weights_used": {
+      "semantic": 0.4,
+      "keyword": 0.3
+    },
+    "recommended_script_id": "script-start-vm",
+    "recommendation_rank": 1,
+    "executed": false,
+    "success": false,
+    "execution_time_seconds": 0.0,
+    "error_message": "",
+    "created_at": "2026-01-19T07:24:10.261834",
+    "executed_at": ""
+  }
+]

@@ -1,0 +1,153 @@
+# Pre-commit hooks configuration
+# Install: pip install pre-commit && pre-commit install
+# Run manually: pre-commit run --all-files
+
+repos:
+  # =============================================================================
+  # SECURITY - Prevent secrets from being committed
+  # =============================================================================
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.4.0
+    hooks:
+      - id: detect-secrets
+        args: ['--baseline', '.secrets.baseline']
+        exclude: |
+          (?x)^(
+            .*\.lock|
+            .*package-lock\.json|
+            .*yarn\.lock|
+            \.env\.example|
+            docs/.*
+          )$
+
+  - repo: https://github.com/zricethezav/gitleaks
+    rev: v8.18.0
+    hooks:
+      - id: gitleaks
+
+  # Custom hook to prevent sensitive files
+  - repo: local
+    hooks:
+      - id: check-sensitive-files
+        name: Check for sensitive files
+        entry: bash -c '
+          SENSITIVE_PATTERNS=(
+            "*.pem"
+            "*.key"
+            "*-key.json"
+            "gcp-key.json"
+            "service-account*.json"
+            "credentials*.json"
+            ".env"
+            "*.env.local"
+            "*.env.*.local"
+            "secrets.yaml"
+            "secrets.yml"
+          )
+          for pattern in "${SENSITIVE_PATTERNS[@]}"; do
+            files=$(git diff --cached --name-only | grep -E "$pattern" || true)
+            if [ -n "$files" ]; then
+              echo "ERROR: Attempting to commit sensitive file matching pattern: $pattern"
+              echo "Files: $files"
+              echo "Use .gitignore to exclude these files or use GCP Secret Manager"
+              exit 1
+            fi
+          done
+          exit 0
+        '
+        language: system
+        pass_filenames: false
+
+  # =============================================================================
+  # CODE QUALITY - Python
+  # =============================================================================
+  - repo: https://github.com/psf/black
+    rev: 24.1.0
+    hooks:
+      - id: black
+        language_version: python3
+        args: ['--line-length=100']
+
+  - repo: https://github.com/pycqa/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+        args: ['--profile=black', '--line-length=100']
+
+  - repo: https://github.com/pycqa/flake8
+    rev: 7.0.0
+    hooks:
+      - id: flake8
+        args: ['--max-line-length=100', '--ignore=E501,W503,E203']
+        additional_dependencies:
+          - flake8-bugbear
+          - flake8-comprehensions
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.8.0
+    hooks:
+      - id: mypy
+        args: ['--ignore-missing-imports', '--no-strict-optional']
+        additional_dependencies:
+          - types-requests
+          - types-redis
+
+  # =============================================================================
+  # CODE QUALITY - General
+  # =============================================================================
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+        args: ['--unsafe']  # Allow custom tags
+      - id: check-json
+      - id: check-added-large-files
+        args: ['--maxkb=1000']
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: debug-statements
+      - id: detect-private-key
+      - id: check-executables-have-shebangs
+      - id: check-shebang-scripts-are-executable
+
+  # =============================================================================
+  # CODE QUALITY - TypeScript/JavaScript (Frontend)
+  # =============================================================================
+  - repo: https://github.com/pre-commit/mirrors-eslint
+    rev: v8.56.0
+    hooks:
+      - id: eslint
+        files: \.(js|jsx|ts|tsx)$
+        types: [file]
+        args: ['--fix']
+        additional_dependencies:
+          - eslint@8.56.0
+          - typescript
+          - '@typescript-eslint/parser'
+          - '@typescript-eslint/eslint-plugin'
+
+  # =============================================================================
+  # DOCUMENTATION
+  # =============================================================================
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.38.0
+    hooks:
+      - id: markdownlint
+        args: ['--fix', '--disable', 'MD013', 'MD033', 'MD041']
+
+# Global exclusions
+exclude: |
+  (?x)^(
+    frontend/node_modules/|
+    frontend/.next/|
+    \.git/|
+    __pycache__/|
+    \.pytest_cache/|
+    venv/|
+    \.venv/|
+    dist/|
+    build/|
+    .*\.egg-info/
+  )$

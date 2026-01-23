@@ -1,0 +1,127 @@
+# ==============================================================================
+# METADATA
+# ==============================================================================
+# name: Fix Nginx 502 Bad Gateway
+# description: Diagnose and fix Nginx 502 errors by restarting upstream services
+# service: nginx
+# component: gateway
+# action: restart
+# risk: medium
+# requires_approval: true
+# estimated_time_minutes: 10
+# tags: [nginx, 502, gateway, upstream, web]
+# error_patterns:
+#   - "502.*bad.*gateway"
+#   - "nginx.*upstream.*failed"
+#   - "connect.*refused"
+# keywords: [nginx, 502, gateway, upstream, proxy, web, server]
+# pre_checks: [check_nginx_status, check_upstream_health]
+# post_checks: [verify_nginx_running, test_endpoint]
+# rollback_script: ansible/rollback_nginx.yml
+# ==============================================================================
+---
+- name: Fix Nginx 502 Bad Gateway Error
+  hosts: webservers
+  become: yes
+  vars:
+    upstream_service: "{{ upstream_service | default('backend-api') }}"
+    nginx_config_path: /etc/nginx/nginx.conf
+
+  pre_tasks:
+    - name: "[PRE-CHECK] Check Nginx service status"
+      systemd:
+        name: nginx
+      register: nginx_status
+
+    - name: "[PRE-CHECK] Test upstream connectivity"
+      uri:
+        url: "http://127.0.0.1:8080/health"
+        method: GET
+        timeout: 5
+      register: upstream_check
+      ignore_errors: yes
+
+    - name: "[PRE-CHECK] Check Nginx error logs"
+      shell: "tail -50 /var/log/nginx/error.log | grep -i 'upstream\\|502\\|refused' | tail -10"
+      register: error_logs
+      ignore_errors: yes
+
+    - name: Display error analysis
+      debug:
+        msg: |
+          Nginx Status: {{ nginx_status.status.ActiveState }}
+          Upstream Check: {{ 'OK' if upstream_check.status == 200 else 'FAILED' }}
+          Recent Errors: {{ error_logs.stdout_lines | default([]) }}
+
+  tasks:
+    - name: Check if upstream service is running
+      systemd:
+        name: "{{ upstream_service }}"
+      register: upstream_status
+      ignore_errors: yes
+
+    - name: Restart upstream service if not running
+      systemd:
+        name: "{{ upstream_service }}"
+        state: restarted
+      when: upstream_status.status.ActiveState != 'active'
+
+    - name: Wait for upstream service to be ready
+      wait_for:
+        port: 8080
+        delay: 5
+        timeout: 60
+      when: upstream_status.status.ActiveState != 'active'
+
+    - name: Test Nginx configuration
+      command: nginx -t
+      register: nginx_test
+
+    - name: Reload Nginx configuration
+      systemd:
+        name: nginx
+        state: reloaded
+      when: nginx_test.rc == 0
+
+    - name: Clear Nginx cache (if exists)
+      file:
+        path: /var/cache/nginx
+        state: absent
+      ignore_errors: yes
+
+    - name: Recreate cache directory
+      file:
+        path: /var/cache/nginx
+        state: directory
+        owner: nginx
+        group: nginx
+        mode: '0755'
+      ignore_errors: yes
+
+  post_tasks:
+    - name: "[POST-CHECK] Verify Nginx is running"
+      systemd:
+        name: nginx
+      register: final_nginx_status
+      failed_when: final_nginx_status.status.ActiveState != 'active'
+
+    - name: "[POST-CHECK] Test endpoint returns 200"
+      uri:
+        url: "http://127.0.0.1/health"
+        method: GET
+        timeout: 10
+      register: endpoint_test
+      retries: 3
+      delay: 5
+
+    - name: "[POST-CHECK] Verify no 502 errors in last minute"
+      shell: "grep '502' /var/log/nginx/access.log | tail -10 | wc -l"
+      register: recent_502s
+
+    - name: Summary
+      debug:
+        msg: |
+          === REMEDIATION COMPLETE ===
+          Nginx Status: {{ final_nginx_status.status.ActiveState }}
+          Endpoint Test: {{ 'PASS' if endpoint_test.status == 200 else 'FAIL' }}
+          Recent 502 Errors: {{ recent_502s.stdout }}

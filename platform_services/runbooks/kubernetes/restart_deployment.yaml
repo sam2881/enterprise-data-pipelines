@@ -1,0 +1,58 @@
+# ==============================================================================
+# METADATA
+# ==============================================================================
+# name: Restart Kubernetes Deployment
+# description: Safely restart all pods in a deployment with rolling update
+# service: kubernetes
+# component: deployment
+# action: restart
+# risk: low
+# requires_approval: false
+# estimated_time_minutes: 5
+# tags: [kubernetes, k8s, deployment, restart, pods, rolling]
+# error_patterns:
+#   - "pod.*crash"
+#   - "container.*error"
+#   - "deployment.*unhealthy"
+#   - "crashloopbackoff"
+# keywords: [kubernetes, k8s, pod, deployment, restart, rolling, container]
+# pre_checks: [verify_deployment_exists, check_current_pods]
+# post_checks: [verify_pods_running, check_rollout_status]
+# rollback_script: kubernetes/rollback_deployment.yaml
+# ==============================================================================
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: restart-deployment-{{ deployment_name }}
+  namespace: {{ namespace | default('default') }}
+spec:
+  template:
+    spec:
+      serviceAccountName: deployment-manager
+      restartPolicy: Never
+      containers:
+        - name: kubectl
+          image: bitnami/kubectl:latest
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+
+              echo "=== Pre-Check: Verify deployment exists ==="
+              kubectl get deployment {{ deployment_name }} -n {{ namespace | default('default') }}
+
+              echo "=== Current Pod Status ==="
+              kubectl get pods -n {{ namespace | default('default') }} -l app={{ deployment_name }}
+
+              echo "=== Initiating Rolling Restart ==="
+              kubectl rollout restart deployment/{{ deployment_name }} -n {{ namespace | default('default') }}
+
+              echo "=== Waiting for rollout to complete ==="
+              kubectl rollout status deployment/{{ deployment_name }} -n {{ namespace | default('default') }} --timeout=300s
+
+              echo "=== Post-Check: Verify pods are running ==="
+              kubectl get pods -n {{ namespace | default('default') }} -l app={{ deployment_name }}
+
+              echo "=== Deployment restart completed successfully ==="

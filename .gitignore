@@ -1,0 +1,199 @@
+# =============================================================================
+# SECURITY - Credentials and Secrets (CRITICAL)
+# =============================================================================
+# GCP Service Account Keys - NEVER commit these
+gcp-service-account-key.json
+gcp-key.json
+*-key.json
+service-account*.json
+credentials*.json
+
+# Private Keys
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Environment files with secrets
+.env
+.env.local
+.env.*.local
+.env.development
+.env.staging
+.env.production
+*.env
+
+# Secret files
+secrets.yaml
+secrets.yml
+secrets.json
+**/secrets/
+!backend/secrets/__init__.py
+!backend/secrets/manager.py
+
+# Kubernetes secrets
+*-secret.yaml
+*-secret.yml
+
+# =============================================================================
+# PYTHON
+# =============================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environment
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.venv/
+
+# =============================================================================
+# IDE & EDITORS
+# =============================================================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.sublime-project
+*.sublime-workspace
+
+# =============================================================================
+# LOGS & DEBUGGING
+# =============================================================================
+*.log
+logs/
+*.log.*
+
+# =============================================================================
+# DATABASES (Local)
+# =============================================================================
+*.db
+*.sqlite
+*.sqlite3
+*.sql.gz
+
+# =============================================================================
+# DOCKER
+# =============================================================================
+docker-compose.override.yml
+.dockerignore
+
+# =============================================================================
+# CACHE & BUILD ARTIFACTS
+# =============================================================================
+# DSPy cache
+.dspy_cache/
+backend/prompts/optimized/compiled_modules/*.json
+
+# Pytest
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+
+# MyPy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# =============================================================================
+# TERRAFORM
+# =============================================================================
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+.terraform.lock.hcl
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+# =============================================================================
+# ANSIBLE
+# =============================================================================
+*.retry
+
+# =============================================================================
+# NODE.JS (Frontend)
+# =============================================================================
+node_modules/
+npm-debug.log
+yarn-error.log
+yarn.lock
+package-lock.json
+.next/
+out/
+
+# =============================================================================
+# JUPYTER
+# =============================================================================
+.ipynb_checkpoints/
+*.ipynb
+
+# =============================================================================
+# TEMPORARY FILES
+# =============================================================================
+tmp/
+temp/
+*.tmp
+*.bak
+*.backup
+
+# =============================================================================
+# OS FILES
+# =============================================================================
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.Spotlight-V100
+.Trashes
+._*
+
+# =============================================================================
+# PROJECT SPECIFIC
+# =============================================================================
+# Runbooks folder - managed separately via GitHub sync
+backend/runbooks/
+
+# Generated files
+data/embeddings_cache/
+reports/*.html
+reports/*.json
+
+# Local configuration overrides
+local.yaml
+local.yml
+config.local.yaml

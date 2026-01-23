@@ -1,0 +1,47 @@
+# Development environment configuration
+# DO NOT store secrets here - use Secret Manager
+
+environment: dev
+debug: true
+
+gcp:
+  project_id: ${GCP_PROJECT_ID}
+  region: us-central1
+
+database:
+  host: localhost
+  port: 5432
+  database: data_agent_dev
+  # Connection string built from Secret Manager values
+
+composer:
+  environment_name: data-agent-dev
+  region: us-central1
+
+git:
+  repo_url: ${GIT_REPO_URL}
+  branch_prefix: data-agent/dev/
+  default_branch: develop
+
+jira:
+  base_url: ${JIRA_BASE_URL}
+  project_key: DATA
+
+llm:
+  provider: openai
+  model: gpt-4
+  temperature: 0.0
+  max_tokens: 4096
+
+logging:
+  level: DEBUG
+  format: text
+
+timeouts:
+  default_seconds: 1800
+  approval_seconds: 3600
+
+feature_flags:
+  require_approval_for_prod: true
+  enable_dry_run: true
+  enable_audit_logging: true
