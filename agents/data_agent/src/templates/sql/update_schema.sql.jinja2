@@ -1,0 +1,42 @@
+{# Update schema version SQL template - implement in Phase 6 #}
+{# See docs/CLAUDE_CODE_CONTEXT.md for full template structure #}
+
+-- Update Schema Version: {{ pipeline_name }}
+-- Version: {{ version }}
+-- Generated: {{ generated_at }}
+
+BEGIN;
+
+-- Close out current schema version
+UPDATE schema_version
+SET
+    is_current = FALSE,
+    effective_to = NOW()
+WHERE
+    pipeline_id = {{ pipeline_id }}
+    AND is_current = TRUE;
+
+-- Insert new schema version
+INSERT INTO schema_version (
+    pipeline_id,
+    version,
+    schema_definition,
+    change_type,
+    change_description,
+    is_current,
+    effective_from,
+    created_by,
+    created_at
+) VALUES (
+    {{ pipeline_id }},
+    {{ version }},
+    '{{ schema_definition | tojson }}',
+    '{{ change_type }}',
+    '{{ change_description }}',
+    TRUE,
+    NOW(),
+    '{{ created_by }}',
+    NOW()
+);
+
+COMMIT;

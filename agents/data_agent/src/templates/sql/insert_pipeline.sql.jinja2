@@ -1,0 +1,37 @@
+{# Insert pipeline metadata SQL template - implement in Phase 6 #}
+{# See docs/CLAUDE_CODE_CONTEXT.md for full template structure #}
+
+-- Insert Pipeline: {{ pipeline_name }}
+-- Domain: {{ domain }}
+-- Generated: {{ generated_at }}
+
+BEGIN;
+
+INSERT INTO pipeline (
+    pipeline_name,
+    domain,
+    source_type,
+    source_system,
+    environment,
+    data_sensitivity,
+    business_owner,
+    technical_owner,
+    is_active,
+    created_by,
+    created_at
+) VALUES (
+    '{{ pipeline_name }}',
+    '{{ domain }}',
+    '{{ source_type }}',
+    '{{ source_system }}',
+    '{{ environment }}',
+    '{{ data_sensitivity }}',
+    '{{ business_owner }}',
+    '{{ technical_owner }}',
+    TRUE,
+    '{{ created_by }}',
+    NOW()
+)
+RETURNING pipeline_id;
+
+COMMIT;

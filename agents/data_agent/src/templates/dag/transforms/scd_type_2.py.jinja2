@@ -1,0 +1,197 @@
+{#
+SCD Type 2 Transform Template
+Tracks historical changes with effective dates
+#}
+
+{%- macro scd_type_2_task(config) -%}
+{#
+config: {
+    "source_path": "gs://bucket/silver/customers",
+    "target_table": "dim_customers",
+    "primary_keys": ["customer_id"],
+    "tracked_columns": ["name", "email", "address", "status"],
+    "effective_from_column": "effective_from",
+    "effective_to_column": "effective_to",
+    "is_current_column": "is_current"
+}
+#}
+@task(task_id='scd_type_2_{{ config.target_table }}')
+def scd_type_2_{{ config.target_table }}(input_data: dict, **context) -> dict:
+    """
+    SCD Type 2: {{ config.target_table }}
+    Primary Keys: {{ config.primary_keys | join(', ') }}
+    Tracked Columns: {{ config.tracked_columns | join(', ') }}
+    """
+    from google.cloud import bigquery, storage
+    from datetime import datetime as dt
+    import hashlib
+
+    execution_date = context['execution_date'].strftime('%Y-%m-%d')
+    now = dt.utcnow().isoformat()
+
+    # Load incoming records
+    gcs = storage.Client(project=PROJECT_ID)
+    source_path = input_data.get('output_path', '{{ config.source_path }}')
+
+    bucket_name = source_path.replace('gs://', '').split('/')[0]
+    blob_path = '/'.join(source_path.replace('gs://', '').split('/')[1:])
+
+    bucket = gcs.bucket(bucket_name)
+    blob = bucket.blob(blob_path)
+    incoming_records = [json.loads(line) for line in blob.download_as_string().decode().split('\n') if line]
+
+    logger.info(f"Processing {len(incoming_records)} incoming records for SCD Type 2")
+
+    # Load current dimension from BigQuery
+    bq = bigquery.Client(project=PROJECT_ID)
+    table_id = f"{PROJECT_ID}.{BQ_DATASET}.{{ config.target_table }}"
+
+    try:
+        current_query = f"""
+            SELECT * FROM `{table_id}`
+            WHERE {{ config.is_current_column | default('is_current') }} = TRUE
+        """
+        current_df = bq.query(current_query).to_dataframe()
+        current_records = current_df.to_dict('records')
+    except Exception:
+        current_records = []
+
+    # Build lookup by primary key
+    pk_lookup = {}
+    for record in current_records:
+        pk = tuple(record.get(k) for k in {{ config.primary_keys | tojson }})
+        pk_lookup[pk] = record
+
+    # Process SCD Type 2 logic
+    result_records = []
+    inserts = 0
+    updates = 0
+    unchanged = 0
+
+    primary_keys = {{ config.primary_keys | tojson }}
+    tracked_columns = {{ config.tracked_columns | tojson }}
+
+    for incoming in incoming_records:
+        pk = tuple(incoming.get(k) for k in primary_keys)
+        current = pk_lookup.get(pk)
+
+        if current is None:
+            # New record - INSERT
+            new_record = {
+                **incoming,
+                '{{ config.effective_from_column | default("effective_from") }}': now,
+                '{{ config.effective_to_column | default("effective_to") }}': '9999-12-31T23:59:59',
+                '{{ config.is_current_column | default("is_current") }}': True,
+                '_scd_hash': hashlib.md5('|'.join(str(incoming.get(c, '')) for c in tracked_columns).encode()).hexdigest(),
+            }
+            result_records.append(new_record)
+            inserts += 1
+
+        else:
+            # Check if tracked columns changed
+            current_hash = current.get('_scd_hash', '')
+            incoming_hash = hashlib.md5('|'.join(str(incoming.get(c, '')) for c in tracked_columns).encode()).hexdigest()
+
+            if current_hash != incoming_hash:
+                # Values changed - close old record, insert new version
+                # Close old record
+                closed_record = {
+                    **current,
+                    '{{ config.effective_to_column | default("effective_to") }}': now,
+                    '{{ config.is_current_column | default("is_current") }}': False,
+                }
+                result_records.append(closed_record)
+
+                # New version
+                new_record = {
+                    **incoming,
+                    '{{ config.effective_from_column | default("effective_from") }}': now,
+                    '{{ config.effective_to_column | default("effective_to") }}': '9999-12-31T23:59:59',
+                    '{{ config.is_current_column | default("is_current") }}': True,
+                    '_scd_hash': incoming_hash,
+                }
+                result_records.append(new_record)
+                updates += 1
+            else:
+                # No change - keep current
+                result_records.append(current)
+                unchanged += 1
+
+    # Include records not in incoming (still current)
+    for pk, record in pk_lookup.items():
+        incoming_pks = {tuple(r.get(k) for k in primary_keys) for r in incoming_records}
+        if pk not in incoming_pks:
+            result_records.append(record)
+
+    logger.info(f"SCD Type 2 results: {inserts} inserts, {updates} updates, {unchanged} unchanged")
+
+    # Write results to Gold layer
+    gold_path = f"{DOMAIN}/{{ config.target_table }}/{execution_date}/data.json"
+    gold_bucket = gcs.bucket(GOLD_BUCKET)
+    gold_blob = gold_bucket.blob(gold_path)
+    gold_blob.upload_from_string(
+        '\n'.join(json.dumps(r, default=str) for r in result_records),
+        content_type='application/json'
+    )
+
+    # Load to BigQuery (WRITE_TRUNCATE to replace)
+    job_config = bigquery.LoadJobConfig(
+        source_format=bigquery.SourceFormat.NEWLINE_DELIMITED_JSON,
+        autodetect=True,
+        write_disposition=bigquery.WriteDisposition.WRITE_TRUNCATE,
+    )
+
+    load_job = bq.load_table_from_uri(
+        f"gs://{GOLD_BUCKET}/{gold_path}",
+        table_id,
+        job_config=job_config,
+    )
+    load_job.result()
+
+    return {
+        'output_path': f"gs://{GOLD_BUCKET}/{gold_path}",
+        'table_id': table_id,
+        'inserts': inserts,
+        'updates': updates,
+        'unchanged': unchanged,
+        'total_records': len(result_records),
+    }
+{%- endmacro -%}
+
+{%- macro scd_type_1_task(config) -%}
+{#
+SCD Type 1: Simple overwrite of changed records
+#}
+@task(task_id='scd_type_1_{{ config.target_table }}')
+def scd_type_1_{{ config.target_table }}(input_data: dict, **context) -> dict:
+    """SCD Type 1: Overwrite changes in {{ config.target_table }}"""
+    from google.cloud import bigquery
+
+    bq = bigquery.Client(project=PROJECT_ID)
+    table_id = f"{PROJECT_ID}.{BQ_DATASET}.{{ config.target_table }}"
+
+    # MERGE statement for upsert
+    merge_keys = ' AND '.join(f'T.{k} = S.{k}' for k in {{ config.primary_keys | tojson }})
+
+    merge_query = f"""
+        MERGE `{table_id}` T
+        USING UNNEST(@records) S
+        ON {merge_keys}
+        WHEN MATCHED THEN
+            UPDATE SET
+                {', '.join(f'{col} = S.{col}' for col in {{ config.update_columns | tojson }})}
+        WHEN NOT MATCHED THEN
+            INSERT ROW
+    """
+
+    # Execute merge
+    job_config = bigquery.QueryJobConfig(
+        query_parameters=[
+            bigquery.ArrayQueryParameter("records", "STRUCT", input_data['records'])
+        ]
+    )
+
+    bq.query(merge_query, job_config=job_config).result()
+
+    return {'table_id': table_id, 'status': 'complete'}
+{%- endmacro -%}

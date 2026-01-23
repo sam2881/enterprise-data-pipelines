@@ -1,0 +1,76 @@
+{#
+GCP Configuration Macro - Shared across all DAG templates
+Provides: PROJECT_ID, REGION, BUCKETS, DATAPROC, SERVICE_ACCOUNT
+#}
+
+{%- macro gcp_config() -%}
+# =============================================================================
+# GCP CONFIGURATION (Auto-injected from metadata)
+# =============================================================================
+PROJECT_ID = "{{ gcp_project_id | default(var.value.gcp_project_id | default('')) }}"
+GCP_REGION = "{{ gcp_region | default(var.value.gcp_region | default('us-central1')) }}"
+SERVICE_ACCOUNT = "{{ service_account | default(var.value.service_account | default('')) }}"
+
+# Medallion Architecture Buckets
+LANDING_BUCKET = f"{PROJECT_ID}-landing"
+RAW_BUCKET = f"{PROJECT_ID}-raw-data"
+BRONZE_BUCKET = f"{PROJECT_ID}-bronze"
+SILVER_BUCKET = f"{PROJECT_ID}-silver"
+GOLD_BUCKET = f"{PROJECT_ID}-gold"
+ARCHIVE_BUCKET = f"{PROJECT_ID}-archive"
+QUARANTINE_BUCKET = f"{PROJECT_ID}-quarantine"
+
+# Compute
+DATAPROC_CLUSTER = "{{ dataproc_cluster | default(var.value.dataproc_cluster | default('data-processing-cluster')) }}"
+COMPOSER_BUCKET = "{{ composer_bucket | default(var.value.composer_bucket | default('')) }}"
+
+# BigQuery
+BQ_DATASET = "{{ bq_dataset | default(domain_name) }}"
+BQ_TABLE = "{{ bq_table | default(product_code) }}"
+BQ_LOCATION = "{{ bq_location | default('US') }}"
+
+# Paths
+DOMAIN = "{{ domain_name }}"
+PRODUCT_CODE = "{{ product_code }}"
+ENVIRONMENT = "{{ environment | default('dev') }}"
+SOURCE_PATH = f"{DOMAIN}/{PRODUCT_CODE}"
+{%- endmacro -%}
+
+{%- macro metadata_config() -%}
+# =============================================================================
+# METADATA CONFIGURATION (From PostgreSQL)
+# =============================================================================
+METADATA_DB_CONN_ID = "{{ metadata_db_conn_id | default('postgres_metadata') }}"
+JIRA_TICKET = "{{ jira_ticket | default('') }}"
+PIPELINE_VERSION = "{{ pipeline_version | default('1.0.0') }}"
+CREATED_BY = "{{ created_by | default('data-platform') }}"
+CREATED_AT = "{{ created_at | default('') }}"
+
+# Primary Keys & Merge Keys
+PRIMARY_KEYS = {{ primary_keys | default(['id']) | tojson }}
+MERGE_KEYS = {{ merge_keys | default(primary_keys | default(['id'])) | tojson }}
+PARTITION_COLUMNS = {{ partition_columns | default([]) | tojson }}
+CLUSTER_COLUMNS = {{ cluster_columns | default([]) | tojson }}
+{%- endmacro -%}
+
+{%- macro quality_config() -%}
+# =============================================================================
+# DATA QUALITY CONFIGURATION
+# =============================================================================
+MIN_QUALITY_SCORE = {{ min_quality_score | default(85.0) }}
+QUALITY_RULES = {{ quality_rules | default([
+    {"rule": "not_null", "column": "id", "severity": "critical"},
+    {"rule": "unique", "column": "id", "severity": "critical"}
+]) | tojson }}
+QUARANTINE_THRESHOLD = {{ quarantine_threshold | default(0.10) }}  # Max 10% bad records
+{%- endmacro -%}
+
+{%- macro alerting_config() -%}
+# =============================================================================
+# ALERTING CONFIGURATION
+# =============================================================================
+SLACK_WEBHOOK = "{{ slack_webhook | default(var.value.slack_webhook | default('')) }}"
+ALERT_EMAILS = {{ alert_emails | default([]) | tojson }}
+PAGERDUTY_KEY = "{{ pagerduty_key | default('') }}"
+ENABLE_SLACK_ALERTS = {{ enable_slack_alerts | default(True) | lower }}
+{%- endmacro -%}

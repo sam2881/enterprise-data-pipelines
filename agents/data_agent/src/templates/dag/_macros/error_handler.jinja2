@@ -1,0 +1,199 @@
+{#
+Error Handler Macro - Standardized error handling and notifications
+#}
+
+{%- macro error_handler_task() -%}
+@task(task_id='handle_pipeline_failure', trigger_rule=TriggerRule.ONE_FAILED)
+def handle_pipeline_failure(**context):
+    """
+    Centralized error handler for pipeline failures.
+    - Logs error to audit table
+    - Sends Slack/email notifications
+    - Triggers self-healing if enabled
+    """
+    import requests
+    from datetime import datetime
+
+    ti = context['ti']
+    dag_run = context['dag_run']
+
+    # Collect failure information
+    failed_tasks = [
+        task_instance for task_instance in dag_run.get_task_instances()
+        if task_instance.state == 'failed'
+    ]
+
+    error_info = {
+        'dag_id': '{{ dag_id }}',
+        'execution_date': context['execution_date'].isoformat(),
+        'failed_tasks': [t.task_id for t in failed_tasks],
+        'timestamp': datetime.utcnow().isoformat(),
+        'jira_ticket': JIRA_TICKET,
+        'environment': ENVIRONMENT,
+    }
+
+    # Get error details from failed tasks
+    for task in failed_tasks[:3]:  # Limit to first 3 failures
+        try:
+            error_info[f'{task.task_id}_error'] = str(task.log.read())[-500:]  # Last 500 chars
+        except Exception:
+            error_info[f'{task.task_id}_error'] = 'Could not retrieve error details'
+
+    logger.error(f"Pipeline failure: {error_info}")
+
+    # Send Slack notification
+    if SLACK_WEBHOOK:
+        try:
+            slack_message = {
+                "blocks": [
+                    {
+                        "type": "header",
+                        "text": {"type": "plain_text", "text": ":x: Pipeline Failed"}
+                    },
+                    {
+                        "type": "section",
+                        "fields": [
+                            {"type": "mrkdwn", "text": f"*DAG:* {{ dag_id }}"},
+                            {"type": "mrkdwn", "text": f"*Environment:* {ENVIRONMENT}"},
+                            {"type": "mrkdwn", "text": f"*Jira:* {JIRA_TICKET}"},
+                            {"type": "mrkdwn", "text": f"*Failed Tasks:* {', '.join(error_info['failed_tasks'])}"},
+                        ]
+                    },
+                    {
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": f"*Execution Date:* {error_info['execution_date']}"
+                        }
+                    },
+                    {
+                        "type": "actions",
+                        "elements": [
+                            {
+                                "type": "button",
+                                "text": {"type": "plain_text", "text": "View Logs"},
+                                "url": f"{{{{ dag_run.get_task_instance('handle_pipeline_failure').log_url }}}}"
+                            }
+                        ]
+                    }
+                ]
+            }
+            requests.post(SLACK_WEBHOOK, json=slack_message, timeout=10)
+        except Exception as e:
+            logger.warning(f"Failed to send Slack notification: {e}")
+
+    # Log to metadata database
+    _log_pipeline_event('FAILED', error_info)
+
+    return error_info
+{%- endmacro -%}
+
+{%- macro success_notification_task() -%}
+@task(task_id='send_success_notification', trigger_rule=TriggerRule.ALL_SUCCESS)
+def send_success_notification(**context):
+    """Send success notification to Slack and log to metadata."""
+    import requests
+    from datetime import datetime
+
+    execution_date = context['execution_date'].strftime('%Y-%m-%d')
+
+    success_info = {
+        'dag_id': '{{ dag_id }}',
+        'execution_date': execution_date,
+        'status': 'SUCCESS',
+        'timestamp': datetime.utcnow().isoformat(),
+        'jira_ticket': JIRA_TICKET,
+    }
+
+    # Get metrics from XCom
+    try:
+        metrics = context['ti'].xcom_pull(task_ids='log_metrics', key='pipeline_metrics') or {}
+        success_info['metrics'] = metrics
+    except Exception:
+        success_info['metrics'] = {}
+
+    # Send Slack notification
+    if SLACK_WEBHOOK and ENABLE_SLACK_ALERTS:
+        try:
+            requests.post(SLACK_WEBHOOK, json={
+                "blocks": [
+                    {
+                        "type": "header",
+                        "text": {"type": "plain_text", "text": ":white_check_mark: Pipeline Completed"}
+                    },
+                    {
+                        "type": "section",
+                        "fields": [
+                            {"type": "mrkdwn", "text": f"*DAG:* {{ dag_id }}"},
+                            {"type": "mrkdwn", "text": f"*Environment:* {ENVIRONMENT}"},
+                            {"type": "mrkdwn", "text": f"*Records:* {success_info['metrics'].get('record_count', 'N/A')}"},
+                            {"type": "mrkdwn", "text": f"*Quality Score:* {success_info['metrics'].get('quality_score', 'N/A')}%"},
+                        ]
+                    }
+                ]
+            }, timeout=10)
+        except Exception as e:
+            logger.warning(f"Failed to send Slack notification: {e}")
+
+    # Log to metadata database
+    _log_pipeline_event('SUCCESS', success_info)
+
+    return success_info
+{%- endmacro -%}
+
+{%- macro audit_logging_functions() -%}
+def _log_pipeline_event(event_type: str, event_data: dict):
+    """Log pipeline event to PostgreSQL metadata database."""
+    from airflow.providers.postgres.hooks.postgres import PostgresHook
+
+    try:
+        hook = PostgresHook(postgres_conn_id=METADATA_DB_CONN_ID)
+        insert_sql = """
+            INSERT INTO pipeline_events (
+                dag_id, execution_date, event_type, event_data,
+                jira_ticket, environment, created_at
+            ) VALUES (%s, %s, %s, %s, %s, %s, NOW())
+        """
+        hook.run(insert_sql, parameters=(
+            '{{ dag_id }}',
+            event_data.get('execution_date', ''),
+            event_type,
+            json.dumps(event_data),
+            JIRA_TICKET,
+            ENVIRONMENT,
+        ))
+    except Exception as e:
+        logger.warning(f"Failed to log pipeline event: {e}")
+
+
+def _update_pipeline_metadata(metadata: dict):
+    """Update pipeline metadata in PostgreSQL."""
+    from airflow.providers.postgres.hooks.postgres import PostgresHook
+
+    try:
+        hook = PostgresHook(postgres_conn_id=METADATA_DB_CONN_ID)
+        upsert_sql = """
+            INSERT INTO pipeline_metadata (
+                dag_id, jira_ticket, domain, product_code, environment,
+                source_type, target_table, primary_keys, metadata,
+                created_at, updated_at
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
+            ON CONFLICT (dag_id, environment)
+            DO UPDATE SET
+                metadata = EXCLUDED.metadata,
+                updated_at = NOW()
+        """
+        hook.run(upsert_sql, parameters=(
+            '{{ dag_id }}',
+            JIRA_TICKET,
+            DOMAIN,
+            PRODUCT_CODE,
+            ENVIRONMENT,
+            '{{ source_type }}',
+            BQ_TABLE,
+            json.dumps(PRIMARY_KEYS),
+            json.dumps(metadata),
+        ))
+    except Exception as e:
+        logger.warning(f"Failed to update pipeline metadata: {e}")
+{%- endmacro -%}
