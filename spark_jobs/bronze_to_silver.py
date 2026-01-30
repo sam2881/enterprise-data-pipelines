@@ -291,7 +291,19 @@ def process_bronze_to_silver(
     else:
         write_mode = "append"
 
-    # Step 7: Write to Silver
+    # Step 7: Idempotent re-run: delete existing Silver data for this execution_date
+    try:
+        from delta.tables import DeltaTable
+        if contract_config.get("silver_table"):
+            dt = DeltaTable.forName(spark, contract_config["silver_table"])
+        else:
+            dt = DeltaTable.forPath(spark, contract_config["silver_path"])
+        dt.delete(f"_silver_execution_date = '{execution_date}'")
+        print(f"Deleted existing Silver data for execution_date={execution_date}")
+    except Exception:
+        pass  # Table doesn't exist yet on first run
+
+    # Step 8: Write to Silver
     writer = silver_df.write \
         .format("delta") \
         .mode(write_mode) \

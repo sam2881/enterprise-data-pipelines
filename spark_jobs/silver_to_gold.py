@@ -332,6 +332,19 @@ def process_silver_to_gold(
     else:
         write_mode = "append"
 
+    # Idempotent re-run: delete existing Gold data for this execution_date (skip for SCD2)
+    if not is_scd2:
+        try:
+            from delta.tables import DeltaTable
+            if contract_config.get("gold_table"):
+                dt = DeltaTable.forName(spark, contract_config["gold_table"])
+            else:
+                dt = DeltaTable.forPath(spark, contract_config["gold_path"])
+            dt.delete(f"_gold_execution_date = '{execution_date}'")
+            print(f"Deleted existing Gold data for execution_date={execution_date}")
+        except Exception:
+            pass  # Table doesn't exist yet on first run
+
     # For SCD2, we need to use merge (Delta Lake)
     if is_scd2:
         # Use Delta Lake merge

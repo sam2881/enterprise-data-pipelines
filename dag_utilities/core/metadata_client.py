@@ -333,22 +333,32 @@ class MetadataClient:
         feed_id: str,
         params: Dict[str, Any]
     ) -> str:
-        """Create a new pipeline execution record."""
+        """Create a new pipeline execution record with auto-incrementing sequence."""
         execution_id = str(uuid.uuid4())
+        execution_date = params.get("execution_date", date.today())
 
-        query = """
-            INSERT INTO pipeline_execution (
-                execution_id, feed_id, dag_run_id, execution_date,
-                start_ts, status, trigger_type, parameters
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-            RETURNING execution_id
-        """
         with self.conn.cursor() as cur:
+            # Compute next sequence for this feed + execution_date
+            cur.execute("""
+                SELECT COALESCE(MAX(sequence), 0) + 1
+                FROM pipeline_execution
+                WHERE feed_id = %s AND execution_date = %s
+            """, [feed_id, execution_date])
+            next_seq = cur.fetchone()[0]
+
+            query = """
+                INSERT INTO pipeline_execution (
+                    execution_id, feed_id, dag_run_id, execution_date,
+                    sequence, start_ts, status, trigger_type, parameters
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING execution_id
+            """
             cur.execute(query, [
                 execution_id,
                 feed_id,
                 params.get("dag_run_id"),
-                params.get("execution_date", date.today()),
+                execution_date,
+                next_seq,
                 datetime.utcnow(),
                 "RUNNING",
                 params.get("trigger_type", "scheduled"),

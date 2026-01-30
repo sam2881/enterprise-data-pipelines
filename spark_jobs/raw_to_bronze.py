@@ -349,6 +349,18 @@ def process_raw_to_bronze(
     # Determine write mode based on load type
     write_mode = "append" if contract_config["load_type"] == "APPEND" else "overwrite"
 
+    # Idempotent re-run: delete existing data for this execution_date before writing
+    try:
+        from delta.tables import DeltaTable
+        if contract_config.get("bronze_table"):
+            dt = DeltaTable.forName(spark, contract_config["bronze_table"])
+        else:
+            dt = DeltaTable.forPath(spark, contract_config["bronze_path"])
+        dt.delete(f"_execution_date = '{execution_date}'")
+        print(f"Deleted existing Bronze data for execution_date={execution_date}")
+    except Exception:
+        pass  # Table doesn't exist yet on first run
+
     # Write to Bronze
     partition_cols = contract_config.get("partition_columns") or ["_execution_date"]
 
