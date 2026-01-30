@@ -1,0 +1,23 @@
+# =============================================================================
+# APEX DAG Runtime Dependencies
+# =============================================================================
+# Installed in Airflow containers so generated DAGs can import dag_utilities.
+# These are runtime-only deps — NO LangGraph/LLM packages.
+# =============================================================================
+
+# Logging (used by AuditLogger, MetricsCollector)
+structlog>=23.1.0
+
+# Database (MetadataClient connects to PostgreSQL)
+psycopg2-binary>=2.9.0
+sqlalchemy>=1.4.0,<2.0.0
+
+# Google Cloud (GCSClient, FileOperations, SparkJobSubmitter)
+google-cloud-storage>=2.10.0
+google-cloud-bigquery>=3.11.0
+
+# HTTP (SlackNotifier, EmailNotifier, API sources)
+requests>=2.31.0
+
+# Retry logic (RetryHandler, SelfHealer)
+tenacity>=8.2.0
