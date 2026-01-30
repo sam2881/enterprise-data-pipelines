@@ -106,7 +106,6 @@ with DAG(
         task_id="bronze_ingest",
         project_id=PROJECT_ID,
         region=REGION,
-        cluster_name=CLUSTER_NAME,
         job={
             "reference": {"job_id": "bronze_{{ ds_nodash }}_{{ run_id[:8] }}"},
             "placement": {"cluster_name": CLUSTER_NAME},
@@ -126,7 +125,6 @@ with DAG(
         task_id="silver_transform",
         project_id=PROJECT_ID,
         region=REGION,
-        cluster_name=CLUSTER_NAME,
         job={
             "reference": {"job_id": "silver_{{ ds_nodash }}_{{ run_id[:8] }}"},
             "placement": {"cluster_name": CLUSTER_NAME},
@@ -145,7 +143,6 @@ with DAG(
         task_id="gold_load_bq",
         project_id=PROJECT_ID,
         region=REGION,
-        cluster_name=CLUSTER_NAME,
         job={
             "reference": {"job_id": "gold_{{ ds_nodash }}_{{ run_id[:8] }}"},
             "placement": {"cluster_name": CLUSTER_NAME},
