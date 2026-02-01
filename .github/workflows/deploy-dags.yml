@@ -60,16 +60,16 @@ jobs:
 
       - name: Install Airflow
         run: |
-          pip install --upgrade pip
-          pip install apache-airflow==${{ env.AIRFLOW_VERSION }}
-          pip install apache-airflow-providers-google
-          pip install pyspark pandas structlog
+          python -m pip install --upgrade pip
+          python -m pip install apache-airflow==${{ env.AIRFLOW_VERSION }}
+          python -m pip install apache-airflow-providers-google
+          python -m pip install pyspark pandas structlog
 
       - name: Initialize Airflow DB
         run: |
           export AIRFLOW_HOME=/tmp/airflow
           mkdir -p $AIRFLOW_HOME
-          airflow db init
+          python -m airflow db init
 
       - name: Validate DAG syntax
         run: |
@@ -79,9 +79,11 @@ jobs:
           fi
 
           export AIRFLOW_HOME=/tmp/airflow
+          export AIRFLOW__CORE__LOAD_EXAMPLES=False
           python -c "
           import sys, os
           os.environ['AIRFLOW_HOME'] = '/tmp/airflow'
+          os.environ['AIRFLOW__CORE__LOAD_EXAMPLES'] = 'False'
           from airflow.models import DagBag
 
           dag_bag = DagBag(dag_folder='dags', include_examples=False)
