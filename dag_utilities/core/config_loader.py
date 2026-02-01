@@ -45,6 +45,36 @@ class APEXConfig:
     slack_webhook_url: Optional[str] = None
     pagerduty_api_key: Optional[str] = None
 
+    # Metadata DB URL (convenience property)
+    metadata_db_url: str = ""
+
+    def __post_init__(self):
+        if not self.metadata_db_url:
+            self.metadata_db_url = self.metadata_db
+
+    @classmethod
+    def from_environment(cls) -> "APEXConfig":
+        """Load APEXConfig from environment variables."""
+        return cls(
+            metadata_db=os.getenv("APEX_METADATA_DB", "postgresql://apex:apex@localhost:5432/apex_metadata"),
+            metadata_db_pool_size=int(os.getenv("APEX_DB_POOL_SIZE", "5")),
+            spark_master=os.getenv("SPARK_MASTER", "yarn"),
+            spark_home=os.getenv("SPARK_HOME", "/opt/spark"),
+            spark_jobs_path=os.getenv("APEX_SPARK_JOBS_PATH", "/opt/spark/jobs"),
+            raw_bucket=os.getenv("APEX_RAW_BUCKET", "gs://datalake/raw"),
+            bronze_bucket=os.getenv("APEX_BRONZE_BUCKET", "gs://datalake/bronze"),
+            silver_bucket=os.getenv("APEX_SILVER_BUCKET", "gs://datalake/silver"),
+            gold_bucket=os.getenv("APEX_GOLD_BUCKET", "gs://datalake/gold"),
+            bq_project=os.getenv("GCP_PROJECT", "enterprise-data-lake"),
+            bq_dataset_bronze=os.getenv("BQ_DATASET_BRONZE", "bronze"),
+            bq_dataset_silver=os.getenv("BQ_DATASET_SILVER", "silver"),
+            bq_dataset_gold=os.getenv("BQ_DATASET_GOLD", "gold"),
+            airflow_home=os.getenv("AIRFLOW_HOME", "/opt/airflow"),
+            smtp_host=os.getenv("SMTP_HOST"),
+            slack_webhook_url=os.getenv("SLACK_WEBHOOK_URL"),
+            pagerduty_api_key=os.getenv("PAGERDUTY_API_KEY"),
+        )
+
 
 class ConfigLoader:
     """

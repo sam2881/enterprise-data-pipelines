@@ -10,7 +10,7 @@ Provides core functionality for APEX DAGs:
 
 from dag_utilities.core.metadata_client import MetadataClient
 from dag_utilities.core.execution_context import ExecutionContext
-from dag_utilities.core.config_loader import ConfigLoader
+from dag_utilities.core.config_loader import ConfigLoader, APEXConfig
 from dag_utilities.core.exceptions import (
     APEXError,
     MetadataError,
@@ -23,6 +23,7 @@ __all__ = [
     "MetadataClient",
     "ExecutionContext",
     "ConfigLoader",
+    "APEXConfig",
     "APEXError",
     "MetadataError",
     "ValidationError",
