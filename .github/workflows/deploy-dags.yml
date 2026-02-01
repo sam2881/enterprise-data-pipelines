@@ -61,29 +61,30 @@ jobs:
       - name: Install Airflow
         run: |
           python -m pip install --upgrade pip
-          python -m pip install apache-airflow==${{ env.AIRFLOW_VERSION }}
-          python -m pip install apache-airflow-providers-google
-          python -m pip install pyspark pandas structlog
-
-      - name: Initialize Airflow DB
-        run: |
-          export AIRFLOW_HOME=/tmp/airflow
-          mkdir -p $AIRFLOW_HOME
-          python -m airflow db init
+          AIRFLOW_VERSION=${{ env.AIRFLOW_VERSION }}
+          PYTHON_VERSION="$(python --version | cut -d " " -f 2 | cut -d "." -f 1-2)"
+          CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt"
+          pip install "apache-airflow==${AIRFLOW_VERSION}" --constraint "${CONSTRAINT_URL}"
+          pip install apache-airflow-providers-google pyspark pandas structlog
 
       - name: Validate DAG syntax
+        env:
+          AIRFLOW_HOME: /tmp/airflow
+          AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+          AIRFLOW__CORE__DAGS_FOLDER: ${{ github.workspace }}/dags
         run: |
           if [ ! -d "dags" ]; then
             echo "No dags/ directory found, skipping"
             exit 0
           fi
 
-          export AIRFLOW_HOME=/tmp/airflow
-          export AIRFLOW__CORE__LOAD_EXAMPLES=False
+          # Initialize Airflow DB
+          mkdir -p $AIRFLOW_HOME
+          airflow db migrate
+
+          # Validate DAGs using Python
           python -c "
           import sys, os
-          os.environ['AIRFLOW_HOME'] = '/tmp/airflow'
-          os.environ['AIRFLOW__CORE__LOAD_EXAMPLES'] = 'False'
           from airflow.models import DagBag
 
           dag_bag = DagBag(dag_folder='dags', include_examples=False)
