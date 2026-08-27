@@ -9,7 +9,7 @@
 -- Purpose: Central registry for all Jira tickets that trigger pipeline creation
 -- =============================================================================
 
-CREATE TABLE IF NOT EXISTS jira_tickets (
+CREATE TABLE IF NOT EXISTS platform_jira_tickets (
     jira_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 
     -- Ticket Identity
@@ -91,21 +91,21 @@ CREATE TABLE IF NOT EXISTS jira_tickets (
     CONSTRAINT valid_status CHECK (status IN ('open', 'in_progress', 'blocked', 'completed', 'cancelled', 'on_hold'))
 );
 
-CREATE INDEX idx_jira_ticket_id ON jira_tickets(ticket_id);
-CREATE INDEX idx_jira_status ON jira_tickets(status);
-CREATE INDEX idx_jira_type ON jira_tickets(ticket_type);
-CREATE INDEX idx_jira_domain ON jira_tickets(target_domain);
-CREATE INDEX idx_jira_assignee ON jira_tickets(assignee);
-CREATE INDEX idx_jira_priority ON jira_tickets(priority);
+CREATE INDEX idx_jira_ticket_id ON platform_jira_tickets(ticket_id);
+CREATE INDEX idx_jira_status ON platform_jira_tickets(status);
+CREATE INDEX idx_jira_type ON platform_jira_tickets(ticket_type);
+CREATE INDEX idx_jira_domain ON platform_jira_tickets(target_domain);
+CREATE INDEX idx_jira_assignee ON platform_jira_tickets(assignee);
+CREATE INDEX idx_jira_priority ON platform_jira_tickets(priority);
 
 -- =============================================================================
 -- B. JIRA TICKET REQUIREMENTS
 -- Purpose: Track individual requirements/user stories within a ticket
 -- =============================================================================
 
-CREATE TABLE IF NOT EXISTS jira_ticket_requirements (
+CREATE TABLE IF NOT EXISTS platform_jira_ticket_requirements (
     requirement_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    jira_id UUID NOT NULL REFERENCES jira_tickets(jira_id) ON DELETE CASCADE,
+    jira_id UUID NOT NULL REFERENCES platform_jira_tickets(jira_id) ON DELETE CASCADE,
 
     -- Requirement Details
     requirement_type VARCHAR(50) NOT NULL,  -- source_extraction, transformation, quality_rule, sla, schema_change
@@ -131,17 +131,17 @@ CREATE TABLE IF NOT EXISTS jira_ticket_requirements (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE INDEX idx_requirement_jira ON jira_ticket_requirements(jira_id);
-CREATE INDEX idx_requirement_type ON jira_ticket_requirements(requirement_type);
+CREATE INDEX idx_requirement_jira ON platform_jira_ticket_requirements(jira_id);
+CREATE INDEX idx_requirement_type ON platform_jira_ticket_requirements(requirement_type);
 
 -- =============================================================================
 -- C. JIRA TICKET EVENTS
 -- Purpose: Audit log of all events on a Jira ticket
 -- =============================================================================
 
-CREATE TABLE IF NOT EXISTS jira_ticket_events (
+CREATE TABLE IF NOT EXISTS platform_jira_ticket_events (
     event_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    jira_id UUID NOT NULL REFERENCES jira_tickets(jira_id) ON DELETE CASCADE,
+    jira_id UUID NOT NULL REFERENCES platform_jira_tickets(jira_id) ON DELETE CASCADE,
 
     -- Event Details
     event_type VARCHAR(50) NOT NULL,        -- created, updated, status_changed, pipeline_created, approved, rejected
@@ -161,19 +161,19 @@ CREATE TABLE IF NOT EXISTS jira_ticket_events (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE INDEX idx_ticket_event_jira ON jira_ticket_events(jira_id);
-CREATE INDEX idx_ticket_event_type ON jira_ticket_events(event_type);
-CREATE INDEX idx_ticket_event_date ON jira_ticket_events(created_at);
+CREATE INDEX idx_ticket_event_jira ON platform_jira_ticket_events(jira_id);
+CREATE INDEX idx_ticket_event_type ON platform_jira_ticket_events(event_type);
+CREATE INDEX idx_ticket_event_date ON platform_jira_ticket_events(created_at);
 
 -- =============================================================================
 -- D. JIRA TO PIPELINE MAPPING
 -- Purpose: Explicit many-to-many relationship between Jira tickets and pipelines
 -- =============================================================================
 
-CREATE TABLE IF NOT EXISTS jira_pipeline_mapping (
+CREATE TABLE IF NOT EXISTS platform_jira_pipeline_mapping (
     mapping_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    jira_id UUID NOT NULL REFERENCES jira_tickets(jira_id) ON DELETE CASCADE,
-    pipeline_id UUID NOT NULL REFERENCES pipeline_registry(pipeline_id) ON DELETE CASCADE,
+    jira_id UUID NOT NULL REFERENCES platform_jira_tickets(jira_id) ON DELETE CASCADE,
+    pipeline_id UUID NOT NULL REFERENCES platform_pipeline_registry(pipeline_id) ON DELETE CASCADE,
 
     -- Relationship Type
     relationship_type VARCHAR(50) DEFAULT 'created_from',  -- created_from, modified_by, referenced_in
@@ -188,18 +188,18 @@ CREATE TABLE IF NOT EXISTS jira_pipeline_mapping (
     CONSTRAINT unique_jira_pipeline UNIQUE (jira_id, pipeline_id)
 );
 
-CREATE INDEX idx_mapping_jira ON jira_pipeline_mapping(jira_id);
-CREATE INDEX idx_mapping_pipeline ON jira_pipeline_mapping(pipeline_id);
+CREATE INDEX idx_mapping_jira ON platform_jira_pipeline_mapping(jira_id);
+CREATE INDEX idx_mapping_pipeline ON platform_jira_pipeline_mapping(pipeline_id);
 
 -- =============================================================================
 -- E. JOIN DEPENDENCIES (for Gold Zone Modeling)
 -- Purpose: Track join dependencies for pipelines, including future/placeholder tables
 -- =============================================================================
 
-CREATE TABLE IF NOT EXISTS join_dependencies (
+CREATE TABLE IF NOT EXISTS platform_join_dependencies (
     dependency_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    pipeline_id UUID NOT NULL REFERENCES pipeline_registry(pipeline_id) ON DELETE CASCADE,
-    jira_id UUID REFERENCES jira_tickets(jira_id),
+    pipeline_id UUID NOT NULL REFERENCES platform_pipeline_registry(pipeline_id) ON DELETE CASCADE,
+    jira_id UUID REFERENCES platform_jira_tickets(jira_id),
 
     -- Join Configuration
     join_name VARCHAR(255) NOT NULL,
@@ -235,9 +235,9 @@ CREATE TABLE IF NOT EXISTS join_dependencies (
     CONSTRAINT valid_cardinality CHECK (cardinality IN ('1-1', '1-N', 'N-1', 'N-N'))
 );
 
-CREATE INDEX idx_join_dep_pipeline ON join_dependencies(pipeline_id);
-CREATE INDEX idx_join_dep_jira ON join_dependencies(jira_id);
-CREATE INDEX idx_join_dep_right_entity ON join_dependencies(right_entity_name);
+CREATE INDEX idx_join_dep_pipeline ON platform_join_dependencies(pipeline_id);
+CREATE INDEX idx_join_dep_jira ON platform_join_dependencies(jira_id);
+CREATE INDEX idx_join_dep_right_entity ON platform_join_dependencies(right_entity_name);
 
 -- =============================================================================
 -- JIRA VIEWS
@@ -278,7 +278,7 @@ SELECT
 
     jt.created_at,
     jt.updated_at
-FROM jira_tickets jt
+FROM platform_jira_tickets jt
 ORDER BY
     CASE jt.priority
         WHEN 'critical' THEN 1
@@ -302,9 +302,9 @@ SELECT
     jpm.relationship_type,
     jpm.is_primary,
     jpm.created_at AS mapping_created_at
-FROM jira_tickets jt
-JOIN jira_pipeline_mapping jpm ON jt.jira_id = jpm.jira_id
-JOIN pipeline_registry pr ON jpm.pipeline_id = pr.pipeline_id
+FROM platform_jira_tickets jt
+JOIN platform_jira_pipeline_mapping jpm ON jt.jira_id = jpm.jira_id
+JOIN platform_pipeline_registry pr ON jpm.pipeline_id = pr.pipeline_id
 ORDER BY jt.ticket_id, pr.dag_id;
 
 -- View: Pending Join Dependencies
@@ -326,9 +326,9 @@ SELECT
         WHEN jd.placeholder_contract AND jt.status IN ('completed', 'in_progress') THEN 'in_progress'
         ELSE 'blocked'
     END AS resolution_status
-FROM join_dependencies jd
-JOIN pipeline_registry pr ON jd.pipeline_id = pr.pipeline_id
-LEFT JOIN jira_tickets jt ON jt.ticket_id = jd.expected_pipeline_ticket
+FROM platform_join_dependencies jd
+JOIN platform_pipeline_registry pr ON jd.pipeline_id = pr.pipeline_id
+LEFT JOIN platform_jira_tickets jt ON jt.ticket_id = jd.expected_pipeline_ticket
 WHERE jd.placeholder_contract = TRUE
 ORDER BY jd.created_at;
 
@@ -357,7 +357,7 @@ RETURNS UUID AS $$
 DECLARE
     v_jira_id UUID;
 BEGIN
-    INSERT INTO jira_tickets (
+    INSERT INTO platform_jira_tickets (
         ticket_id, ticket_type, summary, target_domain,
         priority, reporter, assignee, team,
         source_systems, detailed_description,
@@ -382,7 +382,7 @@ BEGIN
     RETURNING jira_id INTO v_jira_id;
 
     -- Log event
-    INSERT INTO jira_ticket_events (jira_id, event_type, event_description, performed_by)
+    INSERT INTO platform_jira_ticket_events (jira_id, event_type, event_description, performed_by)
     VALUES (v_jira_id, 'created', 'Jira ticket registered in platform', p_reporter);
 
     RETURN v_jira_id;
@@ -403,7 +403,7 @@ DECLARE
 BEGIN
     -- Get Jira UUID
     SELECT jira_id INTO v_jira_id
-    FROM jira_tickets
+    FROM platform_jira_tickets
     WHERE ticket_id = p_ticket_id;
 
     IF v_jira_id IS NULL THEN
@@ -411,21 +411,21 @@ BEGIN
     END IF;
 
     -- Create mapping
-    INSERT INTO jira_pipeline_mapping (jira_id, pipeline_id, relationship_type, created_by)
+    INSERT INTO platform_jira_pipeline_mapping (jira_id, pipeline_id, relationship_type, created_by)
     VALUES (v_jira_id, p_pipeline_id, p_relationship_type, p_created_by)
     ON CONFLICT (jira_id, pipeline_id) DO UPDATE SET
         relationship_type = EXCLUDED.relationship_type
     RETURNING mapping_id INTO v_mapping_id;
 
-    -- Update pipeline_ids array in jira_tickets
-    UPDATE jira_tickets
+    -- Update pipeline_ids array in platform_jira_tickets
+    UPDATE platform_jira_tickets
     SET pipeline_ids = pipeline_ids || to_jsonb(p_pipeline_id::text),
         updated_at = NOW()
     WHERE jira_id = v_jira_id
     AND NOT (pipeline_ids ? p_pipeline_id::text);
 
     -- Log event
-    INSERT INTO jira_ticket_events (jira_id, event_type, event_description, pipeline_id, performed_by)
+    INSERT INTO platform_jira_ticket_events (jira_id, event_type, event_description, pipeline_id, performed_by)
     VALUES (v_jira_id, 'pipeline_created', 'Pipeline linked to ticket', p_pipeline_id, p_created_by);
 
     RETURN v_mapping_id;
@@ -445,7 +445,7 @@ DECLARE
 BEGIN
     -- Get current status
     SELECT jira_id, status INTO v_jira_id, v_old_status
-    FROM jira_tickets
+    FROM platform_jira_tickets
     WHERE ticket_id = p_ticket_id;
 
     IF v_jira_id IS NULL THEN
@@ -453,14 +453,14 @@ BEGIN
     END IF;
 
     -- Update status
-    UPDATE jira_tickets
+    UPDATE platform_jira_tickets
     SET status = p_new_status,
         updated_at = NOW(),
         completed_at = CASE WHEN p_new_status = 'completed' THEN NOW() ELSE completed_at END
     WHERE jira_id = v_jira_id;
 
     -- Log event
-    INSERT INTO jira_ticket_events (
+    INSERT INTO platform_jira_ticket_events (
         jira_id, event_type, event_description,
         previous_value, new_value, performed_by
     ) VALUES (
@@ -495,7 +495,7 @@ BEGIN
     -- Determine if this is a placeholder contract
     v_is_placeholder := NOT p_right_entity_exists AND p_expected_pipeline_ticket IS NOT NULL;
 
-    INSERT INTO join_dependencies (
+    INSERT INTO platform_join_dependencies (
         pipeline_id, jira_id, join_name, join_type,
         left_entity, left_keys, right_entity_name, right_keys,
         cardinality, right_entity_exists, right_entity_pipeline_id,
@@ -521,7 +521,7 @@ RETURNS INTEGER AS $$
 DECLARE
     v_count INTEGER;
 BEGIN
-    UPDATE join_dependencies
+    UPDATE platform_join_dependencies
     SET right_entity_exists = TRUE,
         right_entity_pipeline_id = p_right_entity_pipeline_id,
         placeholder_contract = FALSE,
@@ -564,11 +564,11 @@ BEGIN
                 'requirement_description', r.requirement_description,
                 'status', r.status
             ))
-            FROM jira_ticket_requirements r
+            FROM platform_jira_ticket_requirements r
             WHERE r.jira_id = jt.jira_id
         )
     ) INTO result
-    FROM jira_tickets jt
+    FROM platform_jira_tickets jt
     WHERE jt.ticket_id = p_ticket_id;
 
     RETURN result;
@@ -579,7 +579,7 @@ $$ LANGUAGE plpgsql;
 -- TRIGGERS
 -- =============================================================================
 
--- Trigger: Update jira_tickets.updated_at on changes
+-- Trigger: Update platform_jira_tickets.updated_at on changes
 CREATE OR REPLACE FUNCTION update_jira_timestamp()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -589,12 +589,12 @@ END;
 $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER trg_jira_tickets_updated
-    BEFORE UPDATE ON jira_tickets
+    BEFORE UPDATE ON platform_jira_tickets
     FOR EACH ROW
     EXECUTE FUNCTION update_jira_timestamp();
 
 CREATE TRIGGER trg_join_dependencies_updated
-    BEFORE UPDATE ON join_dependencies
+    BEFORE UPDATE ON platform_join_dependencies
     FOR EACH ROW
     EXECUTE FUNCTION update_jira_timestamp();
 
@@ -642,14 +642,14 @@ SELECT register_jira_ticket(
 -- Example: Link pipeline to ticket
 SELECT link_pipeline_to_jira(
     'DATA-1234',
-    (SELECT pipeline_id FROM pipeline_registry WHERE dag_id = 'customer_360_pipeline'),
+    (SELECT pipeline_id FROM platform_pipeline_registry WHERE dag_id = 'customer_360_pipeline'),
     'created_from',
     'jane.smith@company.com'
 );
 
 -- Example: Register a join dependency with placeholder
 SELECT register_join_dependency(
-    (SELECT pipeline_id FROM pipeline_registry WHERE dag_id = 'customer_360_pipeline'),
+    (SELECT pipeline_id FROM platform_pipeline_registry WHERE dag_id = 'customer_360_pipeline'),
     'customer_orders_join',
     'left',
     'fact_customer_360',
@@ -660,6 +660,6 @@ SELECT register_join_dependency(
     FALSE,
     NULL,
     'DATA-9999',  -- Expected ticket that will create dim_product
-    (SELECT jira_id FROM jira_tickets WHERE ticket_id = 'DATA-1234')
+    (SELECT jira_id FROM platform_jira_tickets WHERE ticket_id = 'DATA-1234')
 );
 */

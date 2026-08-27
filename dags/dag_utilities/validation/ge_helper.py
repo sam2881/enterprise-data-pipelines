@@ -217,7 +217,7 @@ class GEHelper:
         # Parse results
         validations = []
         for key, run_result in ge_result.run_results.items():
-            for r in run_result["validation_result"]["results"]:
+            for r in run_result["platform_validation_result"]["results"]:
                 meta = r.get("expectation_config", {}).get("meta", {})
                 exp_type = r["expectation_config"]["expectation_type"]
                 column = r["expectation_config"].get("kwargs", {}).get("column")

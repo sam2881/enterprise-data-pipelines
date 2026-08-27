@@ -7,7 +7,7 @@
 BEGIN;
 
 -- 1. PIPELINE REGISTRY
-INSERT INTO pipeline_registry (
+INSERT INTO platform_pipeline_registry (
     dag_id, pipeline_name, domain, subdomain, product_code,
     description, owner_team, owner_email, jira_ticket,
     environment, status, version
@@ -34,7 +34,7 @@ ON CONFLICT (dag_id, environment) DO UPDATE SET
 RETURNING pipeline_id;
 
 -- 2. SOURCE CONFIGURATION
-INSERT INTO pipeline_sources (
+INSERT INTO platform_pipeline_sources (
     pipeline_id, source_type, source_format,
     source_bucket, source_prefix, file_pattern,
     delimiter, has_header, encoding, created_at
@@ -50,7 +50,7 @@ SELECT
     true,
     'UTF-8',
     NOW()
-FROM pipeline_registry
+FROM platform_pipeline_registry
 WHERE dag_id = 'sales_daily_csv_ingest' AND environment = 'dev'
 ON CONFLICT (pipeline_id) DO UPDATE SET
     source_type = EXCLUDED.source_type,
@@ -58,15 +58,15 @@ ON CONFLICT (pipeline_id) DO UPDATE SET
     updated_at = NOW();
 
 -- 3. SCHEMA DEFINITION
-UPDATE pipeline_schemas
+UPDATE platform_pipeline_schemas
 SET is_current = FALSE, updated_at = NOW()
 WHERE pipeline_id = (
-    SELECT pipeline_id FROM pipeline_registry
+    SELECT pipeline_id FROM platform_pipeline_registry
     WHERE dag_id = 'sales_daily_csv_ingest' AND environment = 'dev'
 ) AND is_current = TRUE;
 
-INSERT INTO pipeline_schemas (
-    pipeline_id, schema_version, is_current, columns,
+INSERT INTO platform_pipeline_schemas (
+    pipeline_id, platform_schema_version, is_current, columns,
     primary_keys, partition_columns, cluster_columns
 )
 SELECT
@@ -86,11 +86,11 @@ SELECT
     '["order_id"]'::jsonb,
     '["order_date"]'::jsonb,
     '["customer_id", "region"]'::jsonb
-FROM pipeline_registry
+FROM platform_pipeline_registry
 WHERE dag_id = 'sales_daily_csv_ingest' AND environment = 'dev';
 
 -- 4. TARGET CONFIGURATION
-INSERT INTO pipeline_targets (
+INSERT INTO platform_pipeline_targets (
     pipeline_id, target_zone, bq_dataset, bq_table,
     write_mode, merge_keys, partition_field, cluster_fields,
     destination_model
@@ -105,7 +105,7 @@ SELECT
     'order_date',
     '["customer_id", "region"]'::jsonb,
     'flat'
-FROM pipeline_registry
+FROM platform_pipeline_registry
 WHERE dag_id = 'sales_daily_csv_ingest' AND environment = 'dev'
 ON CONFLICT (pipeline_id) DO UPDATE SET
     target_zone = EXCLUDED.target_zone,
@@ -115,35 +115,35 @@ ON CONFLICT (pipeline_id) DO UPDATE SET
     updated_at = NOW();
 
 -- 5. QUALITY RULES
-INSERT INTO pipeline_quality_rules (
+INSERT INTO platform_pipeline_quality_rules (
     pipeline_id, rule_name, rule_type, column_name,
     config, severity, threshold_pct, is_active
 )
 SELECT pipeline_id, 'order_id_not_null', 'not_null', 'order_id',
     '{}'::jsonb, 'ERROR', 100.0, TRUE
-FROM pipeline_registry
+FROM platform_pipeline_registry
 WHERE dag_id = 'sales_daily_csv_ingest' AND environment = 'dev';
 
-INSERT INTO pipeline_quality_rules (
+INSERT INTO platform_pipeline_quality_rules (
     pipeline_id, rule_name, rule_type, column_name,
     config, severity, threshold_pct, is_active
 )
 SELECT pipeline_id, 'order_id_unique', 'unique', 'order_id',
     '{}'::jsonb, 'ERROR', 100.0, TRUE
-FROM pipeline_registry
+FROM platform_pipeline_registry
 WHERE dag_id = 'sales_daily_csv_ingest' AND environment = 'dev';
 
-INSERT INTO pipeline_quality_rules (
+INSERT INTO platform_pipeline_quality_rules (
     pipeline_id, rule_name, rule_type, column_name,
     config, severity, threshold_pct, is_active
 )
 SELECT pipeline_id, 'total_amount_range', 'range', 'total_amount',
     '{"min": 0, "max": 1000000}'::jsonb, 'ERROR', 100.0, TRUE
-FROM pipeline_registry
+FROM platform_pipeline_registry
 WHERE dag_id = 'sales_daily_csv_ingest' AND environment = 'dev';
 
 -- 6. EXECUTION POLICY
-INSERT INTO pipeline_execution_policies (
+INSERT INTO platform_pipeline_execution_policies (
     pipeline_id, schedule_interval, start_date, catchup,
     processing_mode, max_active_runs, retry_count, retry_delay_minutes,
     alert_emails
@@ -158,7 +158,7 @@ SELECT
     3,
     5,
     '["data-team@company.com"]'::jsonb
-FROM pipeline_registry
+FROM platform_pipeline_registry
 WHERE dag_id = 'sales_daily_csv_ingest' AND environment = 'dev'
 ON CONFLICT (pipeline_id) DO UPDATE SET
     schedule_interval = EXCLUDED.schedule_interval,
@@ -166,7 +166,7 @@ ON CONFLICT (pipeline_id) DO UPDATE SET
     updated_at = NOW();
 
 -- 7. LOG PIPELINE EVENT
-INSERT INTO pipeline_events (
+INSERT INTO platform_pipeline_events (
     dag_id, event_type, event_data, environment
 ) VALUES (
     'sales_daily_csv_ingest',
@@ -175,7 +175,7 @@ INSERT INTO pipeline_events (
         "action": "insert",
         "source_type": "gcs_file",
         "target_zone": "gold",
-        "schema_version": 1,
+        "platform_schema_version": 1,
         "quality_rule_count": 3,
         "created_by": "apex-data-agent",
         "feed_group_id": "fg_sales_daily"

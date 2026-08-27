@@ -8,8 +8,8 @@
 --
 -- FLOW:
 -- 1. Agent receives request
--- 2. Queries template_registry → finds matching pattern template
--- 3. Queries utility_registry → finds available dag_utilities functions
+-- 2. Queries platform_template_registry → finds matching pattern template
+-- 3. Queries platform_utility_registry → finds available dag_utilities functions
 -- 4. Generates only what's missing
 -- 5. Registers new components back into registry
 -- ═══════════════════════════════════════════════════════════════════════════
@@ -21,7 +21,7 @@
 -- │    The agent queries this to select the right template                  │
 -- └─────────────────────────────────────────────────────────────────────────┘
 
-CREATE TABLE IF NOT EXISTS template_registry (
+CREATE TABLE IF NOT EXISTS platform_template_registry (
     template_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 
     -- Identity
@@ -71,11 +71,11 @@ CREATE TABLE IF NOT EXISTS template_registry (
 );
 
 -- Index for fast lookups
-CREATE INDEX IF NOT EXISTS idx_template_registry_type ON template_registry(template_type);
-CREATE INDEX IF NOT EXISTS idx_template_registry_pattern ON template_registry(pattern_code);
-CREATE INDEX IF NOT EXISTS idx_template_registry_active ON template_registry(is_active);
-CREATE INDEX IF NOT EXISTS idx_template_registry_source_types ON template_registry USING GIN(source_types);
-CREATE INDEX IF NOT EXISTS idx_template_registry_contract_types ON template_registry USING GIN(contract_types);
+CREATE INDEX IF NOT EXISTS idx_template_registry_type ON platform_template_registry(template_type);
+CREATE INDEX IF NOT EXISTS idx_template_registry_pattern ON platform_template_registry(pattern_code);
+CREATE INDEX IF NOT EXISTS idx_template_registry_active ON platform_template_registry(is_active);
+CREATE INDEX IF NOT EXISTS idx_template_registry_source_types ON platform_template_registry USING GIN(source_types);
+CREATE INDEX IF NOT EXISTS idx_template_registry_contract_types ON platform_template_registry USING GIN(contract_types);
 
 
 -- ┌─────────────────────────────────────────────────────────────────────────┐
@@ -84,7 +84,7 @@ CREATE INDEX IF NOT EXISTS idx_template_registry_contract_types ON template_regi
 -- │    The agent queries this to know what's available                      │
 -- └─────────────────────────────────────────────────────────────────────────┘
 
-CREATE TABLE IF NOT EXISTS utility_registry (
+CREATE TABLE IF NOT EXISTS platform_utility_registry (
     utility_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 
     -- Identity
@@ -132,11 +132,11 @@ CREATE TABLE IF NOT EXISTS utility_registry (
 );
 
 -- Indexes
-CREATE INDEX IF NOT EXISTS idx_utility_registry_module ON utility_registry(module_name);
-CREATE INDEX IF NOT EXISTS idx_utility_registry_category ON utility_registry(category);
-CREATE INDEX IF NOT EXISTS idx_utility_registry_type ON utility_registry(component_type);
-CREATE INDEX IF NOT EXISTS idx_utility_registry_active ON utility_registry(is_active);
-CREATE INDEX IF NOT EXISTS idx_utility_registry_templates ON utility_registry USING GIN(used_by_templates);
+CREATE INDEX IF NOT EXISTS idx_utility_registry_module ON platform_utility_registry(module_name);
+CREATE INDEX IF NOT EXISTS idx_utility_registry_category ON platform_utility_registry(category);
+CREATE INDEX IF NOT EXISTS idx_utility_registry_type ON platform_utility_registry(component_type);
+CREATE INDEX IF NOT EXISTS idx_utility_registry_active ON platform_utility_registry(is_active);
+CREATE INDEX IF NOT EXISTS idx_utility_registry_templates ON platform_utility_registry USING GIN(used_by_templates);
 
 
 -- ┌─────────────────────────────────────────────────────────────────────────┐
@@ -144,7 +144,7 @@ CREATE INDEX IF NOT EXISTS idx_utility_registry_templates ON utility_registry US
 -- │    Catalogs the 5 canonical Spark jobs and any custom ones              │
 -- └─────────────────────────────────────────────────────────────────────────┘
 
-CREATE TABLE IF NOT EXISTS spark_job_registry (
+CREATE TABLE IF NOT EXISTS platform_spark_job_registry (
     job_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 
     -- Identity
@@ -191,7 +191,7 @@ CREATE TABLE IF NOT EXISTS spark_job_registry (
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_spark_job_registry_zones ON spark_job_registry(source_zone, target_zone);
+CREATE INDEX IF NOT EXISTS idx_spark_job_registry_zones ON platform_spark_job_registry(source_zone, target_zone);
 
 
 -- ┌─────────────────────────────────────────────────────────────────────────┐
@@ -199,10 +199,10 @@ CREATE INDEX IF NOT EXISTS idx_spark_job_registry_zones ON spark_job_registry(so
 -- │    Tracks every change to any registered component                     │
 -- └─────────────────────────────────────────────────────────────────────────┘
 
-CREATE TABLE IF NOT EXISTS component_change_log (
+CREATE TABLE IF NOT EXISTS platform_component_change_log (
     change_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     component_type VARCHAR(30) NOT NULL,                -- TEMPLATE, UTILITY, SPARK_JOB
-    component_id UUID NOT NULL,                         -- FK to template_registry, utility_registry, or spark_job_registry
+    component_id UUID NOT NULL,                         -- FK to platform_template_registry, platform_utility_registry, or platform_spark_job_registry
     change_type VARCHAR(20) NOT NULL,                   -- CREATED, UPDATED, DEPRECATED, DELETED
     previous_version VARCHAR(20),
     new_version VARCHAR(20),
@@ -212,8 +212,8 @@ CREATE TABLE IF NOT EXISTS component_change_log (
     change_diff JSONB                                   -- What specifically changed
 );
 
-CREATE INDEX IF NOT EXISTS idx_component_change_log_type ON component_change_log(component_type);
-CREATE INDEX IF NOT EXISTS idx_component_change_log_time ON component_change_log(changed_at);
+CREATE INDEX IF NOT EXISTS idx_component_change_log_type ON platform_component_change_log(component_type);
+CREATE INDEX IF NOT EXISTS idx_component_change_log_time ON platform_component_change_log(changed_at);
 
 
 -- ┌─────────────────────────────────────────────────────────────────────────┐
@@ -221,7 +221,7 @@ CREATE INDEX IF NOT EXISTS idx_component_change_log_time ON component_change_log
 -- └─────────────────────────────────────────────────────────────────────────┘
 
 -- Register 9 pipeline pattern templates
-INSERT INTO template_registry (template_code, template_name, template_type, template_path, pattern_code, source_types, contract_types, load_types, supported_zones, requires_modules, spark_jobs_used, required_variables, selection_priority, description, tags)
+INSERT INTO platform_template_registry (template_code, template_name, template_type, template_path, pattern_code, source_types, contract_types, load_types, supported_zones, requires_modules, spark_jobs_used, required_variables, selection_priority, description, tags)
 VALUES
     ('P01', 'File Medallion Pipeline', 'DAG_PATTERN', 'patterns/p01_file_medallion.py.jinja2', 'P01',
      ARRAY['FILE'], ARRAY['STANDARD'], ARRAY['FULL', 'APPEND'],
@@ -299,7 +299,7 @@ ON CONFLICT (template_code) DO NOTHING;
 
 
 -- Register 5 canonical Spark jobs
-INSERT INTO spark_job_registry (job_code, job_name, job_path, source_zone, target_zone, supported_operations, supported_file_formats, supported_source_types, required_arguments, description, tags)
+INSERT INTO platform_spark_job_registry (job_code, job_name, job_path, source_zone, target_zone, supported_operations, supported_file_formats, supported_source_types, required_arguments, description, tags)
 VALUES
     ('RAW_TO_BRONZE', 'Raw to Bronze Ingestion', 'spark_jobs/raw_to_bronze.py', 'RAW', 'BRONZE',
      ARRAY['INGEST', 'TYPE_CAST', 'AUDIT_COLUMNS', 'PARTITION'],

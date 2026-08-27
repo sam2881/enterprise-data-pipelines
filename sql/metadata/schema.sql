@@ -12,7 +12,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- =============================================================================
 
 -- Pipeline Registry: Master record for each pipeline
-CREATE TABLE IF NOT EXISTS pipeline_registry (
+CREATE TABLE IF NOT EXISTS platform_pipeline_registry (
     pipeline_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     dag_id VARCHAR(255) NOT NULL UNIQUE,
     pipeline_name VARCHAR(255) NOT NULL,
@@ -43,17 +43,17 @@ CREATE TABLE IF NOT EXISTS pipeline_registry (
     CONSTRAINT unique_dag_env UNIQUE (dag_id, environment)
 );
 
-CREATE INDEX idx_pipeline_domain ON pipeline_registry(domain);
-CREATE INDEX idx_pipeline_jira ON pipeline_registry(jira_ticket);
-CREATE INDEX idx_pipeline_status ON pipeline_registry(status);
+CREATE INDEX idx_pipeline_domain ON platform_pipeline_registry(domain);
+CREATE INDEX idx_pipeline_jira ON platform_pipeline_registry(jira_ticket);
+CREATE INDEX idx_pipeline_status ON platform_pipeline_registry(status);
 
 -- =============================================================================
 -- SOURCE CONFIGURATION
 -- =============================================================================
 
-CREATE TABLE IF NOT EXISTS pipeline_sources (
+CREATE TABLE IF NOT EXISTS platform_pipeline_sources (
     source_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    pipeline_id UUID NOT NULL REFERENCES pipeline_registry(pipeline_id) ON DELETE CASCADE,
+    pipeline_id UUID NOT NULL REFERENCES platform_pipeline_registry(pipeline_id) ON DELETE CASCADE,
 
     -- Source Type
     source_type VARCHAR(50) NOT NULL, -- file_csv, file_json, database_postgres, streaming_kafka, api_rest, dtsx
@@ -101,17 +101,17 @@ CREATE TABLE IF NOT EXISTS pipeline_sources (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE INDEX idx_source_pipeline ON pipeline_sources(pipeline_id);
-CREATE INDEX idx_source_type ON pipeline_sources(source_type);
+CREATE INDEX idx_source_pipeline ON platform_pipeline_sources(pipeline_id);
+CREATE INDEX idx_source_type ON platform_pipeline_sources(source_type);
 
 -- =============================================================================
 -- SCHEMA DEFINITION
 -- =============================================================================
 
-CREATE TABLE IF NOT EXISTS pipeline_schemas (
+CREATE TABLE IF NOT EXISTS platform_pipeline_schemas (
     schema_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    pipeline_id UUID NOT NULL REFERENCES pipeline_registry(pipeline_id) ON DELETE CASCADE,
-    schema_version VARCHAR(20) NOT NULL DEFAULT '1.0.0',
+    pipeline_id UUID NOT NULL REFERENCES platform_pipeline_registry(pipeline_id) ON DELETE CASCADE,
+    platform_schema_version VARCHAR(20) NOT NULL DEFAULT '1.0.0',
     is_current BOOLEAN DEFAULT TRUE,
 
     -- Columns stored as JSONB array
@@ -130,16 +130,16 @@ CREATE TABLE IF NOT EXISTS pipeline_schemas (
     created_by VARCHAR(100)
 );
 
-CREATE INDEX idx_schema_pipeline ON pipeline_schemas(pipeline_id);
-CREATE INDEX idx_schema_current ON pipeline_schemas(is_current) WHERE is_current = TRUE;
+CREATE INDEX idx_schema_pipeline ON platform_pipeline_schemas(pipeline_id);
+CREATE INDEX idx_schema_current ON platform_pipeline_schemas(is_current) WHERE is_current = TRUE;
 
 -- =============================================================================
 -- TARGET CONFIGURATION
 -- =============================================================================
 
-CREATE TABLE IF NOT EXISTS pipeline_targets (
+CREATE TABLE IF NOT EXISTS platform_pipeline_targets (
     target_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    pipeline_id UUID NOT NULL REFERENCES pipeline_registry(pipeline_id) ON DELETE CASCADE,
+    pipeline_id UUID NOT NULL REFERENCES platform_pipeline_registry(pipeline_id) ON DELETE CASCADE,
 
     -- Target Zone
     target_zone VARCHAR(20) NOT NULL DEFAULT 'gold', -- bronze, silver, gold
@@ -166,15 +166,15 @@ CREATE TABLE IF NOT EXISTS pipeline_targets (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE INDEX idx_target_pipeline ON pipeline_targets(pipeline_id);
+CREATE INDEX idx_target_pipeline ON platform_pipeline_targets(pipeline_id);
 
 -- =============================================================================
 -- TRANSFORMATIONS
 -- =============================================================================
 
-CREATE TABLE IF NOT EXISTS pipeline_transformations (
+CREATE TABLE IF NOT EXISTS platform_pipeline_transformations (
     transform_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    pipeline_id UUID NOT NULL REFERENCES pipeline_registry(pipeline_id) ON DELETE CASCADE,
+    pipeline_id UUID NOT NULL REFERENCES platform_pipeline_registry(pipeline_id) ON DELETE CASCADE,
 
     -- Transform Type
     transform_type VARCHAR(50) NOT NULL, -- rename, cast, derive, filter, aggregate, join, window, scd, nl_transform
@@ -206,16 +206,16 @@ CREATE TABLE IF NOT EXISTS pipeline_transformations (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE INDEX idx_transform_pipeline ON pipeline_transformations(pipeline_id);
-CREATE INDEX idx_transform_zone ON pipeline_transformations(zone);
+CREATE INDEX idx_transform_pipeline ON platform_pipeline_transformations(pipeline_id);
+CREATE INDEX idx_transform_zone ON platform_pipeline_transformations(zone);
 
 -- =============================================================================
 -- DATA QUALITY RULES
 -- =============================================================================
 
-CREATE TABLE IF NOT EXISTS pipeline_quality_rules (
+CREATE TABLE IF NOT EXISTS platform_pipeline_quality_rules (
     rule_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    pipeline_id UUID NOT NULL REFERENCES pipeline_registry(pipeline_id) ON DELETE CASCADE,
+    pipeline_id UUID NOT NULL REFERENCES platform_pipeline_registry(pipeline_id) ON DELETE CASCADE,
 
     -- Rule Definition
     rule_name VARCHAR(100) NOT NULL,
@@ -242,15 +242,15 @@ CREATE TABLE IF NOT EXISTS pipeline_quality_rules (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE INDEX idx_quality_pipeline ON pipeline_quality_rules(pipeline_id);
+CREATE INDEX idx_quality_pipeline ON platform_pipeline_quality_rules(pipeline_id);
 
 -- =============================================================================
 -- EXECUTION POLICY
 -- =============================================================================
 
-CREATE TABLE IF NOT EXISTS pipeline_execution_policies (
+CREATE TABLE IF NOT EXISTS platform_pipeline_execution_policies (
     policy_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    pipeline_id UUID NOT NULL REFERENCES pipeline_registry(pipeline_id) ON DELETE CASCADE,
+    pipeline_id UUID NOT NULL REFERENCES platform_pipeline_registry(pipeline_id) ON DELETE CASCADE,
 
     -- Schedule
     schedule_interval VARCHAR(100), -- cron expression or @daily, @hourly, etc.
@@ -288,9 +288,9 @@ CREATE TABLE IF NOT EXISTS pipeline_execution_policies (
 -- EXECUTION TRACKING
 -- =============================================================================
 
-CREATE TABLE IF NOT EXISTS pipeline_executions (
+CREATE TABLE IF NOT EXISTS platform_pipeline_executions (
     execution_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    pipeline_id UUID NOT NULL REFERENCES pipeline_registry(pipeline_id),
+    pipeline_id UUID NOT NULL REFERENCES platform_pipeline_registry(pipeline_id),
     dag_run_id VARCHAR(255) NOT NULL,
 
     -- Execution Details
@@ -323,15 +323,15 @@ CREATE TABLE IF NOT EXISTS pipeline_executions (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE INDEX idx_execution_pipeline ON pipeline_executions(pipeline_id);
-CREATE INDEX idx_execution_date ON pipeline_executions(execution_date);
-CREATE INDEX idx_execution_status ON pipeline_executions(status);
+CREATE INDEX idx_execution_pipeline ON platform_pipeline_executions(pipeline_id);
+CREATE INDEX idx_execution_date ON platform_pipeline_executions(execution_date);
+CREATE INDEX idx_execution_status ON platform_pipeline_executions(status);
 
 -- =============================================================================
 -- WATERMARKS (for incremental loads)
 -- =============================================================================
 
-CREATE TABLE IF NOT EXISTS pipeline_watermarks (
+CREATE TABLE IF NOT EXISTS platform_pipeline_watermarks (
     watermark_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     dag_id VARCHAR(255) NOT NULL,
     environment VARCHAR(20) NOT NULL DEFAULT 'dev',
@@ -348,7 +348,7 @@ CREATE TABLE IF NOT EXISTS pipeline_watermarks (
 -- PIPELINE EVENTS (audit log)
 -- =============================================================================
 
-CREATE TABLE IF NOT EXISTS pipeline_events (
+CREATE TABLE IF NOT EXISTS platform_pipeline_events (
     event_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     dag_id VARCHAR(255) NOT NULL,
     execution_date VARCHAR(50),
@@ -362,9 +362,9 @@ CREATE TABLE IF NOT EXISTS pipeline_events (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE INDEX idx_event_dag ON pipeline_events(dag_id);
-CREATE INDEX idx_event_type ON pipeline_events(event_type);
-CREATE INDEX idx_event_date ON pipeline_events(created_at);
+CREATE INDEX idx_event_dag ON platform_pipeline_events(dag_id);
+CREATE INDEX idx_event_type ON platform_pipeline_events(event_type);
+CREATE INDEX idx_event_date ON platform_pipeline_events(created_at);
 
 -- =============================================================================
 -- VIEWS
@@ -386,14 +386,14 @@ SELECT
     pe.records_written as last_records_written,
     pe.quality_score as last_quality_score,
     pep.schedule_interval
-FROM pipeline_registry pr
+FROM platform_pipeline_registry pr
 LEFT JOIN LATERAL (
-    SELECT * FROM pipeline_executions
+    SELECT * FROM platform_pipeline_executions
     WHERE pipeline_id = pr.pipeline_id
     ORDER BY execution_date DESC
     LIMIT 1
 ) pe ON TRUE
-LEFT JOIN pipeline_execution_policies pep ON pep.pipeline_id = pr.pipeline_id
+LEFT JOIN platform_pipeline_execution_policies pep ON pep.pipeline_id = pr.pipeline_id
 WHERE pr.status = 'active';
 
 -- Pipeline configuration summary
@@ -411,12 +411,12 @@ SELECT
     pt.destination_model,
     pep.schedule_interval,
     pep.requires_human_approval,
-    (SELECT COUNT(*) FROM pipeline_transformations WHERE pipeline_id = pr.pipeline_id AND is_active = TRUE) as transform_count,
-    (SELECT COUNT(*) FROM pipeline_quality_rules WHERE pipeline_id = pr.pipeline_id AND is_active = TRUE) as quality_rule_count
-FROM pipeline_registry pr
-LEFT JOIN pipeline_sources ps ON ps.pipeline_id = pr.pipeline_id
-LEFT JOIN pipeline_targets pt ON pt.pipeline_id = pr.pipeline_id
-LEFT JOIN pipeline_execution_policies pep ON pep.pipeline_id = pr.pipeline_id;
+    (SELECT COUNT(*) FROM platform_pipeline_transformations WHERE pipeline_id = pr.pipeline_id AND is_active = TRUE) as transform_count,
+    (SELECT COUNT(*) FROM platform_pipeline_quality_rules WHERE pipeline_id = pr.pipeline_id AND is_active = TRUE) as quality_rule_count
+FROM platform_pipeline_registry pr
+LEFT JOIN platform_pipeline_sources ps ON ps.pipeline_id = pr.pipeline_id
+LEFT JOIN platform_pipeline_targets pt ON pt.pipeline_id = pr.pipeline_id
+LEFT JOIN platform_pipeline_execution_policies pep ON pep.pipeline_id = pr.pipeline_id;
 
 -- =============================================================================
 -- FUNCTIONS
@@ -431,7 +431,7 @@ DECLARE
 BEGIN
     -- Get pipeline ID
     SELECT pipeline_id INTO v_pipeline_id
-    FROM pipeline_registry
+    FROM platform_pipeline_registry
     WHERE dag_id = p_dag_id AND environment = p_environment;
 
     IF v_pipeline_id IS NULL THEN
@@ -440,13 +440,13 @@ BEGIN
 
     -- Build configuration JSON
     SELECT jsonb_build_object(
-        'pipeline', (SELECT row_to_json(pr.*) FROM pipeline_registry pr WHERE pipeline_id = v_pipeline_id),
-        'source', (SELECT row_to_json(ps.*) FROM pipeline_sources ps WHERE pipeline_id = v_pipeline_id LIMIT 1),
-        'schema', (SELECT row_to_json(psc.*) FROM pipeline_schemas psc WHERE pipeline_id = v_pipeline_id AND is_current = TRUE LIMIT 1),
-        'target', (SELECT row_to_json(pt.*) FROM pipeline_targets pt WHERE pipeline_id = v_pipeline_id LIMIT 1),
-        'transformations', (SELECT jsonb_agg(row_to_json(ptr.*) ORDER BY transform_order) FROM pipeline_transformations ptr WHERE pipeline_id = v_pipeline_id AND is_active = TRUE),
-        'quality_rules', (SELECT jsonb_agg(row_to_json(pqr.*)) FROM pipeline_quality_rules pqr WHERE pipeline_id = v_pipeline_id AND is_active = TRUE),
-        'execution_policy', (SELECT row_to_json(pep.*) FROM pipeline_execution_policies pep WHERE pipeline_id = v_pipeline_id)
+        'pipeline', (SELECT row_to_json(pr.*) FROM platform_pipeline_registry pr WHERE pipeline_id = v_pipeline_id),
+        'source', (SELECT row_to_json(ps.*) FROM platform_pipeline_sources ps WHERE pipeline_id = v_pipeline_id LIMIT 1),
+        'schema', (SELECT row_to_json(psc.*) FROM platform_pipeline_schemas psc WHERE pipeline_id = v_pipeline_id AND is_current = TRUE LIMIT 1),
+        'target', (SELECT row_to_json(pt.*) FROM platform_pipeline_targets pt WHERE pipeline_id = v_pipeline_id LIMIT 1),
+        'transformations', (SELECT jsonb_agg(row_to_json(ptr.*) ORDER BY transform_order) FROM platform_pipeline_transformations ptr WHERE pipeline_id = v_pipeline_id AND is_active = TRUE),
+        'quality_rules', (SELECT jsonb_agg(row_to_json(pqr.*)) FROM platform_pipeline_quality_rules pqr WHERE pipeline_id = v_pipeline_id AND is_active = TRUE),
+        'execution_policy', (SELECT row_to_json(pep.*) FROM platform_pipeline_execution_policies pep WHERE pipeline_id = v_pipeline_id)
     ) INTO result;
 
     RETURN result;
@@ -469,7 +469,7 @@ RETURNS UUID AS $$
 DECLARE
     v_pipeline_id UUID;
 BEGIN
-    INSERT INTO pipeline_registry (
+    INSERT INTO platform_pipeline_registry (
         dag_id, pipeline_name, domain, product_code,
         owner_team, owner_email, jira_ticket, environment, description
     ) VALUES (
@@ -510,11 +510,11 @@ DECLARE
 BEGIN
     -- Get pipeline ID
     SELECT pipeline_id INTO v_pipeline_id
-    FROM pipeline_registry
+    FROM platform_pipeline_registry
     WHERE dag_id = p_dag_id
     LIMIT 1;
 
-    INSERT INTO pipeline_executions (
+    INSERT INTO platform_pipeline_executions (
         pipeline_id, dag_run_id, execution_date, start_time,
         status, records_read, records_written, quality_score, error_message
     ) VALUES (
@@ -546,32 +546,32 @@ SELECT register_pipeline(
 );
 
 -- Add source configuration
-INSERT INTO pipeline_sources (pipeline_id, source_type, source_format, source_bucket, source_prefix, file_pattern)
+INSERT INTO platform_pipeline_sources (pipeline_id, source_type, source_format, source_bucket, source_prefix, file_pattern)
 SELECT pipeline_id, 'file_csv', 'csv', 'company-raw-data', 'sales/customers', '*.csv'
-FROM pipeline_registry WHERE dag_id = 'sales_customer_ingest';
+FROM platform_pipeline_registry WHERE dag_id = 'sales_customer_ingest';
 
 -- Add schema
-INSERT INTO pipeline_schemas (pipeline_id, columns, primary_keys)
+INSERT INTO platform_pipeline_schemas (pipeline_id, columns, primary_keys)
 SELECT pipeline_id,
     '[{"name": "customer_id", "type": "string", "nullable": false, "pk": true},
       {"name": "name", "type": "string", "nullable": false},
       {"name": "email", "type": "string", "nullable": true},
       {"name": "created_at", "type": "timestamp", "nullable": false}]'::jsonb,
     '["customer_id"]'::jsonb
-FROM pipeline_registry WHERE dag_id = 'sales_customer_ingest';
+FROM platform_pipeline_registry WHERE dag_id = 'sales_customer_ingest';
 
 -- Add target
-INSERT INTO pipeline_targets (pipeline_id, bq_dataset, bq_table, write_mode)
+INSERT INTO platform_pipeline_targets (pipeline_id, bq_dataset, bq_table, write_mode)
 SELECT pipeline_id, 'sales', 'customers', 'merge'
-FROM pipeline_registry WHERE dag_id = 'sales_customer_ingest';
+FROM platform_pipeline_registry WHERE dag_id = 'sales_customer_ingest';
 
 -- Add quality rules
-INSERT INTO pipeline_quality_rules (pipeline_id, rule_name, rule_type, column_name, severity, config)
+INSERT INTO platform_pipeline_quality_rules (pipeline_id, rule_name, rule_type, column_name, severity, config)
 SELECT pipeline_id, 'customer_id_not_null', 'not_null', 'customer_id', 'critical', '{}'::jsonb
-FROM pipeline_registry WHERE dag_id = 'sales_customer_ingest';
+FROM platform_pipeline_registry WHERE dag_id = 'sales_customer_ingest';
 
 -- Add execution policy
-INSERT INTO pipeline_execution_policies (pipeline_id, schedule_interval, retry_count, requires_human_approval)
+INSERT INTO platform_pipeline_execution_policies (pipeline_id, schedule_interval, retry_count, requires_human_approval)
 SELECT pipeline_id, '@daily', 3, FALSE
-FROM pipeline_registry WHERE dag_id = 'sales_customer_ingest';
+FROM platform_pipeline_registry WHERE dag_id = 'sales_customer_ingest';
 */

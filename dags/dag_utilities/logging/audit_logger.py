@@ -18,10 +18,10 @@ class AuditLogger:
     Centralized audit logging for APEX pipelines.
 
     Logs to PostgreSQL tables:
-    - audit_log: Zone-level action logging
-    - validation_log: Validation results
-    - error_log: Error details
-    - agent_decision_log: Agent decisions
+    - platform_audit_log: Zone-level action logging
+    - platform_validation_log: Validation results
+    - platform_error_log: Error details
+    - platform_agent_decision_log: Agent decisions
     """
 
     def __init__(self, connection_string: Optional[str] = None):
@@ -151,7 +151,7 @@ class AuditLogger:
         log_id = str(uuid.uuid4())
 
         query = """
-            INSERT INTO validation_log (
+            INSERT INTO platform_validation_log (
                 validation_log_id, execution_id, validation_id, zone_level,
                 validation_type, rule_name, total_records, passed_records,
                 failed_records, pass_percentage, threshold_percentage,
@@ -201,7 +201,7 @@ class AuditLogger:
         error_id = str(uuid.uuid4())
 
         query = """
-            INSERT INTO error_log (
+            INSERT INTO platform_error_log (
                 error_log_id, execution_id, task_exec_id, error_type,
                 error_code, error_message, stack_trace, error_context,
                 is_transient, created_at
@@ -242,7 +242,7 @@ class AuditLogger:
         decision_id = str(uuid.uuid4())
 
         query = """
-            INSERT INTO agent_decision_log (
+            INSERT INTO platform_agent_decision_log (
                 decision_id, decision_type, input_context, decision_made,
                 decision_rationale, alternatives_considered, confidence_score,
                 execution_id, created_at

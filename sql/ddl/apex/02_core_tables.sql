@@ -8,7 +8,7 @@
 -- │    Stores database/API connection configurations                         │
 -- └─────────────────────────────────────────────────────────────────────────┘
 
-CREATE TABLE IF NOT EXISTS connection_registry (
+CREATE TABLE IF NOT EXISTS platform_connection_registry (
     connection_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     connection_code VARCHAR(100) NOT NULL UNIQUE,
     connection_name VARCHAR(200) NOT NULL,
@@ -24,15 +24,15 @@ CREATE TABLE IF NOT EXISTS connection_registry (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_connection_code ON connection_registry(connection_code);
-CREATE INDEX idx_connection_type ON connection_registry(connection_type);
+CREATE INDEX idx_connection_code ON platform_connection_registry(connection_code);
+CREATE INDEX idx_connection_type ON platform_connection_registry(connection_type);
 
 -- ┌─────────────────────────────────────────────────────────────────────────┐
 -- │ 2. DOMAIN REGISTRY                                                       │
 -- │    Business domains for data organization                                │
 -- └─────────────────────────────────────────────────────────────────────────┘
 
-CREATE TABLE IF NOT EXISTS domain_registry (
+CREATE TABLE IF NOT EXISTS platform_domain_registry (
     domain_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     domain_code VARCHAR(50) NOT NULL UNIQUE,
     domain_name VARCHAR(200) NOT NULL,
@@ -44,20 +44,20 @@ CREATE TABLE IF NOT EXISTS domain_registry (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_domain_code ON domain_registry(domain_code);
+CREATE INDEX idx_domain_code ON platform_domain_registry(domain_code);
 
 -- ┌─────────────────────────────────────────────────────────────────────────┐
 -- │ 3. SOURCE REGISTRY                                                       │
 -- │    External data sources (vendors, systems)                              │
 -- └─────────────────────────────────────────────────────────────────────────┘
 
-CREATE TABLE IF NOT EXISTS source_registry (
+CREATE TABLE IF NOT EXISTS platform_source_registry (
     source_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     source_code VARCHAR(100) NOT NULL UNIQUE,
     source_name VARCHAR(200) NOT NULL,
     source_type VARCHAR(50) NOT NULL,  -- FILE, DATABASE, API, KAFKA, STREAMING, LEGACY, SAAS
-    connection_id UUID REFERENCES connection_registry(connection_id),
-    domain_id UUID REFERENCES domain_registry(domain_id),
+    connection_id UUID REFERENCES platform_connection_registry(connection_id),
+    domain_id UUID REFERENCES platform_domain_registry(domain_id),
     business_unit VARCHAR(200),
     owner_email VARCHAR(200),
     description TEXT,
@@ -66,16 +66,16 @@ CREATE TABLE IF NOT EXISTS source_registry (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_source_code ON source_registry(source_code);
-CREATE INDEX idx_source_type ON source_registry(source_type);
-CREATE INDEX idx_source_domain ON source_registry(domain_id);
+CREATE INDEX idx_source_code ON platform_source_registry(source_code);
+CREATE INDEX idx_source_type ON platform_source_registry(source_type);
+CREATE INDEX idx_source_domain ON platform_source_registry(domain_id);
 
 -- ┌─────────────────────────────────────────────────────────────────────────┐
 -- │ 4. DAG TEMPLATE                                                          │
 -- │    Jinja2 DAG templates for 9 canonical patterns                         │
 -- └─────────────────────────────────────────────────────────────────────────┘
 
-CREATE TABLE IF NOT EXISTS dag_template (
+CREATE TABLE IF NOT EXISTS platform_dag_template (
     template_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     template_code VARCHAR(100) NOT NULL UNIQUE,
     template_name VARCHAR(200) NOT NULL,
@@ -107,19 +107,19 @@ CREATE TABLE IF NOT EXISTS dag_template (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_template_code ON dag_template(template_code);
-CREATE INDEX idx_template_pattern ON dag_template(pattern_id);
-CREATE INDEX idx_template_type ON dag_template(template_type);
+CREATE INDEX idx_template_code ON platform_dag_template(template_code);
+CREATE INDEX idx_template_pattern ON platform_dag_template(pattern_id);
+CREATE INDEX idx_template_type ON platform_dag_template(template_type);
 
 -- ┌─────────────────────────────────────────────────────────────────────────┐
 -- │ 5. FEED GROUP                                                            │
 -- │    Logical grouping of feeds from same source                            │
 -- └─────────────────────────────────────────────────────────────────────────┘
 
-CREATE TABLE IF NOT EXISTS feed_group (
+CREATE TABLE IF NOT EXISTS platform_feed_group (
     feed_group_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    source_id UUID NOT NULL REFERENCES source_registry(source_id),
-    template_id UUID REFERENCES dag_template(template_id),
+    source_id UUID NOT NULL REFERENCES platform_source_registry(source_id),
+    template_id UUID REFERENCES platform_dag_template(template_id),
     feed_group_code VARCHAR(100) NOT NULL UNIQUE,
     feed_group_name VARCHAR(200) NOT NULL,
     feed_group_type VARCHAR(50) NOT NULL,  -- FILE, DATABASE, API, STREAMING
@@ -130,18 +130,18 @@ CREATE TABLE IF NOT EXISTS feed_group (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_feed_group_code ON feed_group(feed_group_code);
-CREATE INDEX idx_feed_group_source ON feed_group(source_id);
-CREATE INDEX idx_feed_group_template ON feed_group(template_id);
+CREATE INDEX idx_feed_group_code ON platform_feed_group(feed_group_code);
+CREATE INDEX idx_feed_group_source ON platform_feed_group(source_id);
+CREATE INDEX idx_feed_group_template ON platform_feed_group(template_id);
 
 -- ┌─────────────────────────────────────────────────────────────────────────┐
 -- │ 6. FEED                                                                  │
 -- │    Individual data feed/pipeline definition                              │
 -- └─────────────────────────────────────────────────────────────────────────┘
 
-CREATE TABLE IF NOT EXISTS feed (
+CREATE TABLE IF NOT EXISTS platform_feed (
     feed_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    feed_group_id UUID NOT NULL REFERENCES feed_group(feed_group_id),
+    feed_group_id UUID NOT NULL REFERENCES platform_feed_group(feed_group_id),
     feed_code VARCHAR(100) NOT NULL UNIQUE,
     feed_name VARCHAR(200) NOT NULL,
     feed_type VARCHAR(20) NOT NULL,  -- BATCH, STREAMING, HYBRID
@@ -156,19 +156,19 @@ CREATE TABLE IF NOT EXISTS feed (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_feed_code ON feed(feed_code);
-CREATE INDEX idx_feed_group ON feed(feed_group_id);
-CREATE INDEX idx_feed_schedule ON feed(schedule_cron);
-CREATE INDEX idx_feed_active ON feed(is_active);
+CREATE INDEX idx_feed_code ON platform_feed(feed_code);
+CREATE INDEX idx_feed_group ON platform_feed(feed_group_id);
+CREATE INDEX idx_feed_schedule ON platform_feed(schedule_cron);
+CREATE INDEX idx_feed_active ON platform_feed(is_active);
 
 -- ┌─────────────────────────────────────────────────────────────────────────┐
 -- │ 7. SPARK CONFIG                                                          │
 -- │    Spark job configurations per feed group                               │
 -- └─────────────────────────────────────────────────────────────────────────┘
 
-CREATE TABLE IF NOT EXISTS spark_config (
+CREATE TABLE IF NOT EXISTS platform_spark_config (
     spark_config_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    feed_group_id UUID NOT NULL REFERENCES feed_group(feed_group_id),
+    feed_group_id UUID NOT NULL REFERENCES platform_feed_group(feed_group_id),
     config_name VARCHAR(100) DEFAULT 'default',
     executor_instances INTEGER DEFAULT 4,
     executor_memory VARCHAR(20) DEFAULT '4g',
@@ -183,17 +183,17 @@ CREATE TABLE IF NOT EXISTS spark_config (
     UNIQUE (feed_group_id, config_name)
 );
 
-CREATE INDEX idx_spark_config_feed_group ON spark_config(feed_group_id);
+CREATE INDEX idx_spark_config_feed_group ON platform_spark_config(feed_group_id);
 
 -- ┌─────────────────────────────────────────────────────────────────────────┐
 -- │ 8. NOTIFICATION CONFIG                                                   │
 -- │    Notification settings for pipeline alerts                             │
 -- └─────────────────────────────────────────────────────────────────────────┘
 
-CREATE TABLE IF NOT EXISTS notification_config (
+CREATE TABLE IF NOT EXISTS platform_notification_config (
     notification_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    feed_id UUID REFERENCES feed(feed_id),
-    feed_group_id UUID REFERENCES feed_group(feed_group_id),
+    feed_id UUID REFERENCES platform_feed(feed_id),
+    feed_group_id UUID REFERENCES platform_feed_group(feed_group_id),
     notification_type VARCHAR(50) NOT NULL,  -- EMAIL, SLACK, PAGERDUTY, TEAMS
     recipients JSONB NOT NULL,  -- List of email addresses or channel IDs
     on_success BOOLEAN DEFAULT false,
@@ -205,15 +205,15 @@ CREATE TABLE IF NOT EXISTS notification_config (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_notification_feed ON notification_config(feed_id);
-CREATE INDEX idx_notification_feed_group ON notification_config(feed_group_id);
+CREATE INDEX idx_notification_feed ON platform_notification_config(feed_id);
+CREATE INDEX idx_notification_feed_group ON platform_notification_config(feed_group_id);
 
 -- ═══════════════════════════════════════════════════════════════════════════
--- 9. watermark_tracking: Incremental load watermark state
+-- 9. platform_watermark_tracking: Incremental load watermark state
 -- ═══════════════════════════════════════════════════════════════════════════
-CREATE TABLE IF NOT EXISTS watermark_tracking (
+CREATE TABLE IF NOT EXISTS platform_watermark_tracking (
     watermark_id SERIAL PRIMARY KEY,
-    feed_id VARCHAR(100) NOT NULL REFERENCES feed(feed_id),
+    feed_id VARCHAR(100) NOT NULL REFERENCES platform_feed(feed_id),
     contract_id VARCHAR(100) NOT NULL,
     column_name VARCHAR(200) NOT NULL,
     column_type VARCHAR(50) NOT NULL DEFAULT 'TIMESTAMP',
@@ -227,5 +227,5 @@ CREATE TABLE IF NOT EXISTS watermark_tracking (
     UNIQUE(feed_id, contract_id, column_name)
 );
 
-CREATE INDEX idx_watermark_feed ON watermark_tracking(feed_id);
-CREATE INDEX idx_watermark_contract ON watermark_tracking(contract_id);
+CREATE INDEX idx_watermark_feed ON platform_watermark_tracking(feed_id);
+CREATE INDEX idx_watermark_contract ON platform_watermark_tracking(contract_id);

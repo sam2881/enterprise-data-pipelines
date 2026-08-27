@@ -226,7 +226,7 @@ Task: {context.get('task_id', 'Unknown')}
         # Get SLA definition
         query = """
             SELECT sla_id, sla_type, target_value, warning_threshold, critical_threshold
-            FROM sla_definition
+            FROM platform_sla_definition
             WHERE feed_id = %s AND is_active = true
         """
 
@@ -237,7 +237,7 @@ Task: {context.get('task_id', 'Unknown')}
         # Get execution
         query = """
             SELECT start_ts, end_ts, status
-            FROM pipeline_execution
+            FROM platform_pipeline_execution
             WHERE execution_id = %s
         """
 
@@ -282,7 +282,7 @@ Task: {context.get('task_id', 'Unknown')}
         breach_id = str(uuid.uuid4())
 
         query = """
-            INSERT INTO sla_breach_log (
+            INSERT INTO platform_sla_breach_log (
                 breach_id, sla_id, execution_id, breach_type,
                 expected_value, actual_value, breach_message, created_at
             ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)

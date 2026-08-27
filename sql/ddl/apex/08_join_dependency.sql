@@ -3,9 +3,9 @@
 -- Defines multi-table join relationships for Gold zone processing
 -- ═══════════════════════════════════════════════════════════════════════════
 
-CREATE TABLE IF NOT EXISTS join_dependency (
+CREATE TABLE IF NOT EXISTS platform_join_dependency (
     join_id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    contract_id      UUID NOT NULL REFERENCES data_contract(contract_id),
+    contract_id      UUID NOT NULL REFERENCES platform_data_contract(contract_id),
     source_table     VARCHAR(255) NOT NULL,
     target_table     VARCHAR(255) NOT NULL,
     join_type        VARCHAR(20)  NOT NULL DEFAULT 'inner',
@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS join_dependency (
 );
 
 CREATE INDEX IF NOT EXISTS idx_join_dep_contract
-    ON join_dependency(contract_id) WHERE is_active = true;
+    ON platform_join_dependency(contract_id) WHERE is_active = true;
 
-COMMENT ON TABLE join_dependency IS
+COMMENT ON TABLE platform_join_dependency IS
     'Multi-table join definitions for Gold zone. Processed by join_executor.py in join_order sequence.';

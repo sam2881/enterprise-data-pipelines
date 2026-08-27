@@ -14,8 +14,8 @@ Validation categories:
 - Multi-column uniqueness  (composite business keys)
 
 Results are persisted to:
-- validation_result   (one row per expectation)
-- validation_summary  (one row per run)
+- platform_validation_result   (one row per expectation)
+- platform_validation_summary  (one row per run)
 with validation_type = 'SEMANTIC'.
 
 Usage (Dataproc submit):
@@ -134,7 +134,7 @@ def load_contract_config(
         .option("url", metadata_db)
         .option(
             "dbtable",
-            f"(SELECT * FROM data_contract WHERE contract_id = '{contract_id}') AS contract",
+            f"(SELECT * FROM platform_data_contract WHERE contract_id = '{contract_id}') AS contract",
         )
         .load()
     )
@@ -160,7 +160,7 @@ def load_semantic_rules_from_db(
             .option(
                 "dbtable",
                 f"""(
-                    SELECT * FROM validation_rule
+                    SELECT * FROM platform_validation_rule
                     WHERE contract_id = '{contract_id}'
                       AND zone_level IN ('SILVER', 'GOLD')
                       AND rule_category IN (
@@ -194,7 +194,7 @@ def load_quality_rules(
             .option(
                 "dbtable",
                 f"""(
-                    SELECT * FROM quality_expectation
+                    SELECT * FROM platform_quality_expectation
                     WHERE contract_id = '{contract_id}'
                       AND zone_level IN ('SILVER', 'GOLD')
                       AND expectation_category = 'SEMANTIC'
@@ -535,7 +535,7 @@ def build_semantic_expectations(
                     "rule_name": qr.get("rule_name", f"quality_{len(expectations)}"),
                     "severity": qr.get("severity", "warning"),
                     "weight": str(qr.get("weight", "1.0")),
-                    "original_rule_type": "quality_expectation",
+                    "original_rule_type": "platform_quality_expectation",
                 },
             })
 
@@ -827,7 +827,7 @@ def persist_results_jdbc(
     jdbc_props = {"driver": "org.postgresql.Driver"}
     now = datetime.now(timezone.utc).isoformat()
 
-    # -- validation_result rows --
+    # -- platform_validation_result rows --
     result_rows = []
     for r in getattr(result, "results", []):
         result_rows.append((
@@ -863,12 +863,12 @@ def persist_results_jdbc(
         result_df = spark.createDataFrame(result_rows, schema)
         result_df.write.jdbc(
             url=jdbc_url,
-            table="validation_result",
+            table="platform_validation_result",
             mode="append",
             properties=jdbc_props,
         )
 
-    # -- validation_summary row --
+    # -- platform_validation_summary row --
     summary_rows = [(
         feed_id,
         execution_id,
@@ -896,7 +896,7 @@ def persist_results_jdbc(
     summary_df = spark.createDataFrame(summary_rows, summary_schema)
     summary_df.write.jdbc(
         url=jdbc_url,
-        table="validation_summary",
+        table="platform_validation_summary",
         mode="append",
         properties=jdbc_props,
     )

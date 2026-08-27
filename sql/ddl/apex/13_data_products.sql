@@ -7,7 +7,7 @@
 -- 1. DATA PRODUCT REGISTRY
 -- ───────────────────────────────────────────────────────────────────────────
 
-CREATE TABLE IF NOT EXISTS data_product (
+CREATE TABLE IF NOT EXISTS platform_data_product (
     product_id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     product_name        VARCHAR(255) NOT NULL,
     domain              VARCHAR(100) NOT NULL,
@@ -27,18 +27,18 @@ CREATE TABLE IF NOT EXISTS data_product (
     updated_at          TIMESTAMP DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_data_product_domain ON data_product (domain);
-CREATE INDEX IF NOT EXISTS idx_data_product_status ON data_product (status);
-CREATE INDEX IF NOT EXISTS idx_data_product_owner  ON data_product (owner);
+CREATE INDEX IF NOT EXISTS idx_data_product_domain ON platform_data_product (domain);
+CREATE INDEX IF NOT EXISTS idx_data_product_status ON platform_data_product (status);
+CREATE INDEX IF NOT EXISTS idx_data_product_owner  ON platform_data_product (owner);
 
 
 -- ───────────────────────────────────────────────────────────────────────────
 -- 2. DATA PRODUCT SUBSCRIPTION
 -- ───────────────────────────────────────────────────────────────────────────
 
-CREATE TABLE IF NOT EXISTS data_product_subscription (
+CREATE TABLE IF NOT EXISTS platform_data_product_subscription (
     subscription_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    product_id      UUID NOT NULL REFERENCES data_product(product_id),
+    product_id      UUID NOT NULL REFERENCES platform_data_product(product_id),
     subscriber      VARCHAR(255) NOT NULL,
     subscriber_type VARCHAR(50) DEFAULT 'USER' CHECK (subscriber_type IN ('USER', 'GROUP', 'SERVICE_ACCOUNT', 'PIPELINE')),
     access_level    VARCHAR(50) DEFAULT 'READ' CHECK (access_level IN ('READ', 'MASKED_READ')),
@@ -50,8 +50,8 @@ CREATE TABLE IF NOT EXISTS data_product_subscription (
     expires_at      TIMESTAMP
 );
 
-CREATE INDEX IF NOT EXISTS idx_subscription_product ON data_product_subscription (product_id);
-CREATE INDEX IF NOT EXISTS idx_subscription_status  ON data_product_subscription (status);
+CREATE INDEX IF NOT EXISTS idx_subscription_product ON platform_data_product_subscription (product_id);
+CREATE INDEX IF NOT EXISTS idx_subscription_status  ON platform_data_product_subscription (status);
 
 
 -- ───────────────────────────────────────────────────────────────────────────
@@ -73,8 +73,8 @@ SELECT
     dp.published_at,
     COUNT(DISTINCT dps.subscription_id) FILTER (WHERE dps.status = 'APPROVED') AS active_subscribers,
     COUNT(DISTINCT dps.subscription_id) FILTER (WHERE dps.status = 'PENDING')  AS pending_requests
-FROM data_product dp
-LEFT JOIN data_product_subscription dps ON dp.product_id = dps.product_id
+FROM platform_data_product dp
+LEFT JOIN platform_data_product_subscription dps ON dp.product_id = dps.product_id
 WHERE dp.is_active = true
 GROUP BY dp.product_id, dp.product_name, dp.domain, dp.owner, dp.description,
          dp.version, dp.status, dp.sla_freshness_hours, dp.sla_quality_score, dp.published_at

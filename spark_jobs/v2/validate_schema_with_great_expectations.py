@@ -62,8 +62,8 @@ logger = logging.getLogger("ge_schema_validator")
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
-VALIDATION_RESULT_TABLE = "validation_result"
-VALIDATION_SUMMARY_TABLE = "validation_summary"
+VALIDATION_RESULT_TABLE = "platform_validation_result"
+VALIDATION_SUMMARY_TABLE = "platform_validation_summary"
 
 RESULT_SCHEMA = StructType(
     [
@@ -380,13 +380,13 @@ def run_validation(
 # ---------------------------------------------------------------------------
 # Result processing
 # ---------------------------------------------------------------------------
-def build_result_rows(validation_result: dict, config: dict) -> list:
+def build_result_rows(platform_validation_result: dict, config: dict) -> list:
     """Extract individual expectation results into flat row dicts."""
     rows = []
 
-    run_results = validation_result.get("run_results", {})
+    run_results = platform_validation_result.get("run_results", {})
     for _key, run_result in run_results.items():
-        validation = run_result.get("validation_result", {})
+        validation = run_result.get("platform_validation_result", {})
         suite_name = validation.get("meta", {}).get("expectation_suite_name", "")
         run_name = validation.get("meta", {}).get("run_id", {}).get("run_name", "")
         run_time = validation.get("meta", {}).get("run_id", {}).get("run_time", "")
@@ -441,7 +441,7 @@ def build_result_rows(validation_result: dict, config: dict) -> list:
 
 
 def build_summary_row(
-    validation_result: dict,
+    platform_validation_result: dict,
     config: dict,
     row_count: int,
 ) -> dict:
@@ -449,9 +449,9 @@ def build_summary_row(
     total_errors = 0
     overall_success = True
 
-    run_results = validation_result.get("run_results", {})
+    run_results = platform_validation_result.get("run_results", {})
     for _key, run_result in run_results.items():
-        validation = run_result.get("validation_result", {})
+        validation = run_result.get("platform_validation_result", {})
         if not validation.get("success", True):
             overall_success = False
         for exp_result in validation.get("results", []):
@@ -522,7 +522,7 @@ def main() -> None:
     # Parse arguments
     config = parse_arguments()
     logger.info(
-        "Config: feed_id=%s, data_asset=%s, format=%s, validation=%s, run_id=%s, seq=%s",
+        "Config: feed_id=%s, platform_data_asset=%s, format=%s, validation=%s, run_id=%s, seq=%s",
         config["feed_id"],
         config["data_asset_name"],
         config["file_format"],
@@ -564,11 +564,11 @@ def main() -> None:
         context = build_data_context(config)
 
         # Run checkpoint validation
-        validation_result = run_validation(context, df, config)
+        platform_validation_result = run_validation(context, df, config)
 
         # Process results
-        result_rows = build_result_rows(validation_result, config)
-        summary_row = build_summary_row(validation_result, config, row_count)
+        result_rows = build_result_rows(platform_validation_result, config)
+        summary_row = build_summary_row(platform_validation_result, config, row_count)
 
         logger.info(
             "Validation complete: %s — %d expectations evaluated, overall=%s",

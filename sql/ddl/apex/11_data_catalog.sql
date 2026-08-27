@@ -10,7 +10,7 @@
 -- Tracks every table/dataset/file across all medallion zones.
 -- Auto-populated by audit_logger after each zone transition.
 
-CREATE TABLE IF NOT EXISTS data_asset (
+CREATE TABLE IF NOT EXISTS platform_data_asset (
     asset_id        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     asset_name      VARCHAR(255) NOT NULL,
     asset_type      VARCHAR(50)  NOT NULL CHECK (asset_type IN ('TABLE', 'VIEW', 'DATASET', 'FILE', 'STREAM')),
@@ -33,14 +33,14 @@ CREATE TABLE IF NOT EXISTS data_asset (
     updated_at      TIMESTAMP DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_data_asset_name   ON data_asset (asset_name);
-CREATE INDEX IF NOT EXISTS idx_data_asset_zone   ON data_asset (zone_level);
-CREATE INDEX IF NOT EXISTS idx_data_asset_domain ON data_asset (domain);
-CREATE INDEX IF NOT EXISTS idx_data_asset_feed   ON data_asset (feed_id);
-CREATE INDEX IF NOT EXISTS idx_data_asset_tags   ON data_asset USING gin (tags);
+CREATE INDEX IF NOT EXISTS idx_data_asset_name   ON platform_data_asset (asset_name);
+CREATE INDEX IF NOT EXISTS idx_data_asset_zone   ON platform_data_asset (zone_level);
+CREATE INDEX IF NOT EXISTS idx_data_asset_domain ON platform_data_asset (domain);
+CREATE INDEX IF NOT EXISTS idx_data_asset_feed   ON platform_data_asset (feed_id);
+CREATE INDEX IF NOT EXISTS idx_data_asset_tags   ON platform_data_asset USING gin (tags);
 
 -- Full-text search index for asset discovery
-CREATE INDEX IF NOT EXISTS idx_data_asset_search ON data_asset
+CREATE INDEX IF NOT EXISTS idx_data_asset_search ON platform_data_asset
     USING gin (to_tsvector('english', coalesce(asset_name, '') || ' ' || coalesce(description, '') || ' ' || coalesce(domain, '')));
 
 
@@ -49,7 +49,7 @@ CREATE INDEX IF NOT EXISTS idx_data_asset_search ON data_asset
 -- ───────────────────────────────────────────────────────────────────────────
 -- Maps business terms to technical assets for self-service discovery.
 
-CREATE TABLE IF NOT EXISTS business_term (
+CREATE TABLE IF NOT EXISTS platform_business_term (
     term_id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     term_name       VARCHAR(255) NOT NULL UNIQUE,
     definition      TEXT NOT NULL,
@@ -63,9 +63,9 @@ CREATE TABLE IF NOT EXISTS business_term (
     updated_at      TIMESTAMP DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_business_term_name   ON business_term (term_name);
-CREATE INDEX IF NOT EXISTS idx_business_term_domain ON business_term (domain);
-CREATE INDEX IF NOT EXISTS idx_business_term_search ON business_term
+CREATE INDEX IF NOT EXISTS idx_business_term_name   ON platform_business_term (term_name);
+CREATE INDEX IF NOT EXISTS idx_business_term_domain ON platform_business_term (domain);
+CREATE INDEX IF NOT EXISTS idx_business_term_search ON platform_business_term
     USING gin (to_tsvector('english', coalesce(term_name, '') || ' ' || coalesce(definition, '') || ' ' || coalesce(domain, '')));
 
 
@@ -74,11 +74,11 @@ CREATE INDEX IF NOT EXISTS idx_business_term_search ON business_term
 -- ───────────────────────────────────────────────────────────────────────────
 -- Hierarchical classification system for data assets.
 
-CREATE TABLE IF NOT EXISTS tag_taxonomy (
+CREATE TABLE IF NOT EXISTS platform_tag_taxonomy (
     tag_id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tag_name        VARCHAR(100) NOT NULL,
     tag_category    VARCHAR(50)  NOT NULL CHECK (tag_category IN ('SENSITIVITY', 'DOMAIN', 'QUALITY', 'COMPLIANCE', 'LIFECYCLE', 'CUSTOM')),
-    parent_tag_id   UUID REFERENCES tag_taxonomy(tag_id),
+    parent_tag_id   UUID REFERENCES platform_tag_taxonomy(tag_id),
     description     TEXT,
     color           VARCHAR(7),
     is_active       BOOLEAN DEFAULT true,
@@ -87,7 +87,7 @@ CREATE TABLE IF NOT EXISTS tag_taxonomy (
 );
 
 -- Seed standard sensitivity tags
-INSERT INTO tag_taxonomy (tag_name, tag_category, description) VALUES
+INSERT INTO platform_tag_taxonomy (tag_name, tag_category, description) VALUES
     ('PUBLIC',       'SENSITIVITY', 'Public data, no access restrictions'),
     ('INTERNAL',     'SENSITIVITY', 'Internal use only'),
     ('CONFIDENTIAL', 'SENSITIVITY', 'Confidential, restricted access'),
@@ -97,7 +97,7 @@ INSERT INTO tag_taxonomy (tag_name, tag_category, description) VALUES
 ON CONFLICT (tag_name, tag_category) DO NOTHING;
 
 -- Seed compliance tags
-INSERT INTO tag_taxonomy (tag_name, tag_category, description) VALUES
+INSERT INTO platform_tag_taxonomy (tag_name, tag_category, description) VALUES
     ('GDPR',     'COMPLIANCE', 'Subject to GDPR regulations'),
     ('CCPA',     'COMPLIANCE', 'Subject to CCPA regulations'),
     ('HIPAA',    'COMPLIANCE', 'Subject to HIPAA regulations'),
@@ -106,7 +106,7 @@ INSERT INTO tag_taxonomy (tag_name, tag_category, description) VALUES
 ON CONFLICT (tag_name, tag_category) DO NOTHING;
 
 -- Seed lifecycle tags
-INSERT INTO tag_taxonomy (tag_name, tag_category, description) VALUES
+INSERT INTO platform_tag_taxonomy (tag_name, tag_category, description) VALUES
     ('RAW',       'LIFECYCLE', 'Raw unprocessed data'),
     ('CURATED',   'LIFECYCLE', 'Cleaned and validated data'),
     ('CERTIFIED', 'LIFECYCLE', 'Production-certified data product'),

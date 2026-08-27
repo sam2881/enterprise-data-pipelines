@@ -115,8 +115,8 @@ class MetadataClient:
                 f.schedule_cron,
                 fg.notification_email,
                 f.owner
-            FROM feed f
-            JOIN feed_group fg ON f.feed_group_id = fg.feed_group_id
+            FROM platform_feed f
+            JOIN platform_feed_group fg ON f.feed_group_id = fg.feed_group_id
             WHERE f.feed_id = %s AND f.is_active = true
         """
         with self.conn.cursor() as cur:
@@ -143,7 +143,7 @@ class MetadataClient:
     def get_feed_by_code(self, feed_code: str) -> FeedConfig:
         """Get feed configuration by code."""
         query = """
-            SELECT feed_id FROM feed
+            SELECT feed_id FROM platform_feed
             WHERE feed_code = %s AND is_active = true
         """
         with self.conn.cursor() as cur:
@@ -168,7 +168,7 @@ class MetadataClient:
                 source_path, raw_path, transient_path, rejected_path,
                 bronze_path, silver_path, gold_path,
                 load_type, primary_keys, partition_columns
-            FROM data_contract
+            FROM platform_data_contract
             WHERE contract_id = %s AND is_active = true
         """
         with self.conn.cursor() as cur:
@@ -199,7 +199,7 @@ class MetadataClient:
     def get_contract_by_feed(self, feed_id: str) -> ContractConfig:
         """Get data contract by feed ID."""
         query = """
-            SELECT contract_id FROM data_contract
+            SELECT contract_id FROM platform_data_contract
             WHERE feed_id = %s AND is_active = true
             LIMIT 1
         """
@@ -223,7 +223,7 @@ class MetadataClient:
                 executor_instances, executor_memory, executor_cores,
                 driver_memory, shuffle_partitions, adaptive_enabled,
                 extra_conf
-            FROM spark_config
+            FROM platform_spark_config
             WHERE feed_group_id = %s AND is_active = true
             LIMIT 1
         """
@@ -263,7 +263,7 @@ class MetadataClient:
         """Get view definition for a contract and zone."""
         query = """
             SELECT view_id, view_name, view_sql, materialized, refresh_mode
-            FROM view_definition
+            FROM platform_view_definition
             WHERE contract_id = %s AND zone_level = %s AND is_active = true
         """
         with self.conn.cursor() as cur:
@@ -291,7 +291,7 @@ class MetadataClient:
             SELECT
                 validation_id, rule_name, rule_expression,
                 validation_type, severity, threshold_pct, is_blocking
-            FROM validation_rule
+            FROM platform_validation_rule
             WHERE contract_id = %s AND zone_level = %s AND is_active = true
             ORDER BY severity DESC
         """
@@ -312,7 +312,7 @@ class MetadataClient:
                 schema_version_id, version_number, schema_json,
                 col_delimiter, row_delimiter, header_rows,
                 encoding, copybook_content
-            FROM schema_version
+            FROM platform_schema_version
             WHERE contract_id = %s AND is_current = true
         """
         with self.conn.cursor() as cur:
@@ -341,13 +341,13 @@ class MetadataClient:
             # Compute next sequence for this feed + execution_date
             cur.execute("""
                 SELECT COALESCE(MAX(sequence), 0) + 1 AS next_seq
-                FROM pipeline_execution
+                FROM platform_pipeline_execution
                 WHERE feed_id = %s AND execution_date = %s
             """, [feed_id, execution_date])
             next_seq = cur.fetchone()["next_seq"]
 
             query = """
-                INSERT INTO pipeline_execution (
+                INSERT INTO platform_pipeline_execution (
                     execution_id, feed_id, dag_run_id, execution_date,
                     sequence, start_ts, status, trigger_type, parameters
                 ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
@@ -376,7 +376,7 @@ class MetadataClient:
     ) -> None:
         """Update pipeline execution status."""
         query = """
-            UPDATE pipeline_execution
+            UPDATE platform_pipeline_execution
             SET status = %s,
                 end_ts = %s,
                 error_message = %s,
@@ -401,7 +401,7 @@ class MetadataClient:
     ) -> None:
         """Update execution metrics."""
         query = """
-            UPDATE pipeline_execution
+            UPDATE platform_pipeline_execution
             SET records_processed = %s,
                 bytes_processed = %s,
                 updated_at = %s
@@ -423,7 +423,7 @@ class MetadataClient:
     def get_template(self, template_id: str) -> Dict[str, Any]:
         """Get DAG template by ID."""
         query = """
-            SELECT * FROM dag_template
+            SELECT * FROM platform_dag_template
             WHERE template_id = %s AND is_active = true
         """
         with self.conn.cursor() as cur:
@@ -440,7 +440,7 @@ class MetadataClient:
         query = """
             SELECT template_id, template_code, template_name,
                    pattern_id, template_type
-            FROM dag_template
+            FROM platform_dag_template
             WHERE is_active = true
             ORDER BY pattern_id
         """
@@ -460,7 +460,7 @@ class MetadataClient:
             SELECT
                 join_id, source_table, target_table, join_type,
                 join_keys, join_order, select_columns, null_safe, broadcast
-            FROM join_dependency
+            FROM platform_join_dependency
             WHERE contract_id = %s AND is_active = true
             ORDER BY join_order
         """
@@ -481,7 +481,7 @@ class MetadataClient:
                 upstream_feed_id, upstream_dag_id, upstream_task_id,
                 dependency_type, required_zone,
                 timeout_seconds, poke_interval
-            FROM pipeline_dependency
+            FROM platform_pipeline_dependency
             WHERE downstream_feed_id = %s AND is_active = true
             ORDER BY upstream_feed_id
         """
@@ -506,7 +506,7 @@ class MetadataClient:
         sql = """
             SELECT asset_id, asset_name, asset_type, zone_level,
                    domain, owner, row_count, description
-            FROM data_asset
+            FROM platform_data_asset
             WHERE is_active = true
               AND (
                   asset_name ILIKE %s
@@ -530,7 +530,7 @@ class MetadataClient:
     def get_asset_by_path(self, dataset_path: str) -> Optional[Dict[str, Any]]:
         """Look up a data asset by GCS/BQ path."""
         sql = """
-            SELECT * FROM data_asset
+            SELECT * FROM platform_data_asset
             WHERE dataset_path = %s AND is_active = true
             LIMIT 1
         """
@@ -553,14 +553,14 @@ class MetadataClient:
     ) -> str:
         """Register or update a data asset in the catalog."""
         sql = """
-            INSERT INTO data_asset (
+            INSERT INTO platform_data_asset (
                 asset_name, asset_type, zone_level, feed_id,
                 dataset_path, row_count, domain, owner, schema_json,
                 last_refreshed_at, updated_at
             ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
             ON CONFLICT (asset_name, zone_level)
             DO UPDATE SET row_count = EXCLUDED.row_count,
-                          schema_json = COALESCE(EXCLUDED.schema_json, data_asset.schema_json),
+                          schema_json = COALESCE(EXCLUDED.schema_json, platform_data_asset.schema_json),
                           last_refreshed_at = NOW(),
                           updated_at = NOW()
             RETURNING asset_id
@@ -584,7 +584,7 @@ class MetadataClient:
         sql = """
             SELECT product_id, product_name, domain, owner, description,
                    sla_freshness_hours, sla_quality_score, version, status
-            FROM data_product
+            FROM platform_data_product
             WHERE is_active = true
         """
         params: list = []
@@ -610,7 +610,7 @@ class MetadataClient:
     ) -> str:
         """Publish a new data product or update existing."""
         sql = """
-            INSERT INTO data_product (
+            INSERT INTO platform_data_product (
                 product_name, domain, owner, description,
                 sla_freshness_hours, sla_quality_score,
                 output_assets, input_feeds,
@@ -638,7 +638,7 @@ class MetadataClient:
     def subscribe_to_product(self, product_id: str, subscriber: str) -> str:
         """Request a subscription to a data product."""
         sql = """
-            INSERT INTO data_product_subscription (product_id, subscriber)
+            INSERT INTO platform_data_product_subscription (product_id, subscriber)
             VALUES (%s, %s)
             RETURNING subscription_id
         """
@@ -657,7 +657,7 @@ class MetadataClient:
         sql = """
             SELECT classification_id, column_name, classification_type,
                    pii_type, confidence, masking_strategy, policy_tag
-            FROM data_classification
+            FROM platform_data_classification
             WHERE asset_id = %s
             ORDER BY column_name
         """
@@ -673,8 +673,8 @@ class MetadataClient:
         """Get all pipelines using a template."""
         query = """
             SELECT f.feed_id, f.feed_code, f.feed_name
-            FROM feed f
-            JOIN feed_group fg ON f.feed_group_id = fg.feed_group_id
+            FROM platform_feed f
+            JOIN platform_feed_group fg ON f.feed_group_id = fg.feed_group_id
             WHERE fg.template_id = %s AND f.is_active = true
         """
         with self.conn.cursor() as cur:

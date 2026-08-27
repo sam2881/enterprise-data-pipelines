@@ -2,8 +2,8 @@
 GE Result Writer — Persists validation results to PostgreSQL.
 
 Writes to:
-- validation_result: one row per expectation
-- validation_summary: one row per checkpoint run
+- platform_validation_result: one row per expectation
+- platform_validation_summary: one row per checkpoint run
 
 Usage:
     from dag_utilities.validation.ge_result_writer import GEResultWriter
@@ -82,7 +82,7 @@ class GEResultWriter:
                 kwargs_json = json.dumps(v.kwargs if hasattr(v, "kwargs") else {})
 
                 cur.execute("""
-                    INSERT INTO validation_result (
+                    INSERT INTO platform_validation_result (
                         feed_id, run_id, sequence, validation_type, zone_level,
                         batch_identifier, expectation_suite_name, column_name,
                         expectation_type, result, element_count, error_count,
@@ -110,7 +110,7 @@ class GEResultWriter:
 
             # Write summary
             cur.execute("""
-                INSERT INTO validation_summary (
+                INSERT INTO platform_validation_summary (
                     feed_id, run_id, checkpoint_name,
                     expectation_suite_name, validation_type, zone_level,
                     total_expectations, successful_expectations,
@@ -219,7 +219,7 @@ class GEResultWriter:
         df = spark.createDataFrame(rows, schema)
         df.write.jdbc(
             url=jdbc_url,
-            table="validation_result",
+            table="platform_validation_result",
             mode="append",
             properties=jdbc_properties,
         )
@@ -254,7 +254,7 @@ class GEResultWriter:
         summary_df = spark.createDataFrame(summary_rows, summary_schema)
         summary_df.write.jdbc(
             url=jdbc_url,
-            table="validation_summary",
+            table="platform_validation_summary",
             mode="append",
             properties=jdbc_properties,
         )

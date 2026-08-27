@@ -78,7 +78,7 @@ def load_schema_from_metadata(spark, metadata_db: str, feed_id: str):
         SELECT columns
         FROM schema_details
         WHERE feed_id = '{feed_id}'
-        ORDER BY schema_version DESC
+        ORDER BY platform_schema_version DESC
         LIMIT 1
     ) AS schema_q"""
 

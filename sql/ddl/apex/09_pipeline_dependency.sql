@@ -3,7 +3,7 @@
 -- Defines upstream/downstream relationships between feeds for DAG orchestration
 -- ═══════════════════════════════════════════════════════════════════════════
 
-CREATE TABLE IF NOT EXISTS pipeline_dependency (
+CREATE TABLE IF NOT EXISTS platform_pipeline_dependency (
     dependency_id       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     upstream_feed_id    VARCHAR(100) NOT NULL,
     upstream_dag_id     VARCHAR(255),          -- Airflow DAG ID of upstream
@@ -23,10 +23,10 @@ CREATE TABLE IF NOT EXISTS pipeline_dependency (
 );
 
 CREATE INDEX IF NOT EXISTS idx_pipeline_dep_downstream
-    ON pipeline_dependency(downstream_feed_id) WHERE is_active = true;
+    ON platform_pipeline_dependency(downstream_feed_id) WHERE is_active = true;
 
 CREATE INDEX IF NOT EXISTS idx_pipeline_dep_upstream
-    ON pipeline_dependency(upstream_feed_id) WHERE is_active = true;
+    ON platform_pipeline_dependency(upstream_feed_id) WHERE is_active = true;
 
-COMMENT ON TABLE pipeline_dependency IS
+COMMENT ON TABLE platform_pipeline_dependency IS
     'Cross-pipeline dependencies. Generates ExternalTaskSensor in downstream DAGs.';

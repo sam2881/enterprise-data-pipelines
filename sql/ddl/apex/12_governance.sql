@@ -8,7 +8,7 @@
 -- ───────────────────────────────────────────────────────────────────────────
 -- Defines who can access what resources at what level.
 
-CREATE TABLE IF NOT EXISTS access_policy (
+CREATE TABLE IF NOT EXISTS platform_access_policy (
     policy_id       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     policy_name     VARCHAR(255) NOT NULL,
     resource_type   VARCHAR(50) NOT NULL CHECK (resource_type IN ('DATASET', 'TABLE', 'COLUMN', 'ZONE', 'DOMAIN')),
@@ -25,8 +25,8 @@ CREATE TABLE IF NOT EXISTS access_policy (
     updated_at      TIMESTAMP DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_access_policy_resource  ON access_policy (resource_type, resource_id);
-CREATE INDEX IF NOT EXISTS idx_access_policy_principal ON access_policy (principal_type, principal_id);
+CREATE INDEX IF NOT EXISTS idx_access_policy_resource  ON platform_access_policy (resource_type, resource_id);
+CREATE INDEX IF NOT EXISTS idx_access_policy_principal ON platform_access_policy (principal_type, principal_id);
 
 
 -- ───────────────────────────────────────────────────────────────────────────
@@ -35,9 +35,9 @@ CREATE INDEX IF NOT EXISTS idx_access_policy_principal ON access_policy (princip
 -- Links PII detection results to data assets.
 -- Auto-populated by pii_detection.persist_classifications().
 
-CREATE TABLE IF NOT EXISTS data_classification (
+CREATE TABLE IF NOT EXISTS platform_data_classification (
     classification_id   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    asset_id            UUID REFERENCES data_asset(asset_id),
+    asset_id            UUID REFERENCES platform_data_asset(asset_id),
     column_name         VARCHAR(255) NOT NULL,
     classification_type VARCHAR(50) NOT NULL CHECK (classification_type IN ('PII', 'PHI', 'FINANCIAL', 'CONFIDENTIAL', 'PUBLIC', 'INTERNAL')),
     pii_type            VARCHAR(50),
@@ -51,16 +51,16 @@ CREATE TABLE IF NOT EXISTS data_classification (
     UNIQUE (asset_id, column_name, classification_type)
 );
 
-CREATE INDEX IF NOT EXISTS idx_classification_asset  ON data_classification (asset_id);
-CREATE INDEX IF NOT EXISTS idx_classification_type   ON data_classification (classification_type);
-CREATE INDEX IF NOT EXISTS idx_classification_pii    ON data_classification (pii_type);
+CREATE INDEX IF NOT EXISTS idx_classification_asset  ON platform_data_classification (asset_id);
+CREATE INDEX IF NOT EXISTS idx_classification_type   ON platform_data_classification (classification_type);
+CREATE INDEX IF NOT EXISTS idx_classification_pii    ON platform_data_classification (pii_type);
 
 
 -- ───────────────────────────────────────────────────────────────────────────
 -- 3. ACCESS REQUEST / AUDIT
 -- ───────────────────────────────────────────────────────────────────────────
 
-CREATE TABLE IF NOT EXISTS access_request (
+CREATE TABLE IF NOT EXISTS platform_access_request (
     request_id      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     requester       VARCHAR(255) NOT NULL,
     resource_type   VARCHAR(50) NOT NULL,
@@ -74,7 +74,7 @@ CREATE TABLE IF NOT EXISTS access_request (
     created_at      TIMESTAMP DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_access_request_status ON access_request (status);
+CREATE INDEX IF NOT EXISTS idx_access_request_status ON platform_access_request (status);
 
 
 -- ───────────────────────────────────────────────────────────────────────────
@@ -94,8 +94,8 @@ SELECT
     dc.is_enforced,
     dc.policy_tag,
     dc.detected_at
-FROM data_classification dc
-JOIN data_asset da ON dc.asset_id = da.asset_id
+FROM platform_data_classification dc
+JOIN platform_data_asset da ON dc.asset_id = da.asset_id
 WHERE dc.classification_type IN ('PII', 'PHI')
   AND da.is_active = true
 ORDER BY da.domain, da.asset_name, dc.column_name;

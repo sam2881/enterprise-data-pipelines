@@ -8,9 +8,9 @@
 -- │    Defines data expectations and paths for each feed                     │
 -- └─────────────────────────────────────────────────────────────────────────┘
 
-CREATE TABLE IF NOT EXISTS data_contract (
+CREATE TABLE IF NOT EXISTS platform_data_contract (
     contract_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    feed_id UUID NOT NULL REFERENCES feed(feed_id),
+    feed_id UUID NOT NULL REFERENCES platform_feed(feed_id),
     contract_type VARCHAR(20) NOT NULL,  -- FILE, TABLE, API, STREAM
 
     -- File-specific fields
@@ -58,18 +58,18 @@ CREATE TABLE IF NOT EXISTS data_contract (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_contract_feed ON data_contract(feed_id);
-CREATE INDEX idx_contract_type ON data_contract(contract_type);
-CREATE INDEX idx_contract_load_type ON data_contract(load_type);
+CREATE INDEX idx_contract_feed ON platform_data_contract(feed_id);
+CREATE INDEX idx_contract_type ON platform_data_contract(contract_type);
+CREATE INDEX idx_contract_load_type ON platform_data_contract(load_type);
 
 -- ┌─────────────────────────────────────────────────────────────────────────┐
 -- │ 2. SCHEMA VERSION                                                        │
 -- │    Versioned schema definitions for each contract                        │
 -- └─────────────────────────────────────────────────────────────────────────┘
 
-CREATE TABLE IF NOT EXISTS schema_version (
+CREATE TABLE IF NOT EXISTS platform_schema_version (
     schema_version_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    contract_id UUID NOT NULL REFERENCES data_contract(contract_id),
+    contract_id UUID NOT NULL REFERENCES platform_data_contract(contract_id),
     version_number INTEGER NOT NULL,
 
     -- Schema definition (JSON array of column definitions)
@@ -101,18 +101,18 @@ CREATE TABLE IF NOT EXISTS schema_version (
     UNIQUE (contract_id, version_number)
 );
 
-CREATE INDEX idx_schema_contract ON schema_version(contract_id);
-CREATE INDEX idx_schema_current ON schema_version(is_current);
-CREATE INDEX idx_schema_version ON schema_version(contract_id, version_number);
+CREATE INDEX idx_schema_contract ON platform_schema_version(contract_id);
+CREATE INDEX idx_schema_current ON platform_schema_version(is_current);
+CREATE INDEX idx_schema_version ON platform_schema_version(contract_id, version_number);
 
 -- ┌─────────────────────────────────────────────────────────────────────────┐
 -- │ 3. VIEW DEFINITION                                                       │
 -- │    SQL view definitions for zone transitions                             │
 -- └─────────────────────────────────────────────────────────────────────────┘
 
-CREATE TABLE IF NOT EXISTS view_definition (
+CREATE TABLE IF NOT EXISTS platform_view_definition (
     view_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    contract_id UUID NOT NULL REFERENCES data_contract(contract_id),
+    contract_id UUID NOT NULL REFERENCES platform_data_contract(contract_id),
     zone_level VARCHAR(20) NOT NULL,  -- BRONZE, SILVER, GOLD
     view_name VARCHAR(200) NOT NULL,
     view_sql TEXT NOT NULL,
@@ -134,16 +134,16 @@ CREATE TABLE IF NOT EXISTS view_definition (
     UNIQUE (contract_id, zone_level, view_name)
 );
 
-CREATE INDEX idx_view_contract ON view_definition(contract_id);
-CREATE INDEX idx_view_zone ON view_definition(zone_level);
-CREATE INDEX idx_view_name ON view_definition(view_name);
+CREATE INDEX idx_view_contract ON platform_view_definition(contract_id);
+CREATE INDEX idx_view_zone ON platform_view_definition(zone_level);
+CREATE INDEX idx_view_name ON platform_view_definition(view_name);
 
 -- ┌─────────────────────────────────────────────────────────────────────────┐
 -- │ 4. TRANSFORMATION RULE                                                   │
 -- │    Reusable transformation rules for Silver/Gold zones                   │
 -- └─────────────────────────────────────────────────────────────────────────┘
 
-CREATE TABLE IF NOT EXISTS transformation_rule (
+CREATE TABLE IF NOT EXISTS platform_transformation_rule (
     rule_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     rule_code VARCHAR(100) NOT NULL UNIQUE,
     rule_name VARCHAR(200) NOT NULL,
@@ -168,18 +168,18 @@ CREATE TABLE IF NOT EXISTS transformation_rule (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_transform_rule_code ON transformation_rule(rule_code);
-CREATE INDEX idx_transform_rule_type ON transformation_rule(rule_type);
+CREATE INDEX idx_transform_rule_code ON platform_transformation_rule(rule_code);
+CREATE INDEX idx_transform_rule_type ON platform_transformation_rule(rule_type);
 
 -- ┌─────────────────────────────────────────────────────────────────────────┐
 -- │ 5. CONTRACT TRANSFORMATION (Junction table)                              │
 -- │    Links contracts to transformation rules                               │
 -- └─────────────────────────────────────────────────────────────────────────┘
 
-CREATE TABLE IF NOT EXISTS contract_transformation (
+CREATE TABLE IF NOT EXISTS platform_contract_transformation (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    contract_id UUID NOT NULL REFERENCES data_contract(contract_id),
-    rule_id UUID NOT NULL REFERENCES transformation_rule(rule_id),
+    contract_id UUID NOT NULL REFERENCES platform_data_contract(contract_id),
+    rule_id UUID NOT NULL REFERENCES platform_transformation_rule(rule_id),
     zone_level VARCHAR(20) NOT NULL,  -- SILVER or GOLD
     execution_order INTEGER DEFAULT 1,
     is_active BOOLEAN DEFAULT true,
@@ -188,5 +188,5 @@ CREATE TABLE IF NOT EXISTS contract_transformation (
     UNIQUE (contract_id, rule_id, zone_level)
 );
 
-CREATE INDEX idx_contract_transform_contract ON contract_transformation(contract_id);
-CREATE INDEX idx_contract_transform_rule ON contract_transformation(rule_id);
+CREATE INDEX idx_contract_transform_contract ON platform_contract_transformation(contract_id);
+CREATE INDEX idx_contract_transform_rule ON platform_contract_transformation(rule_id);

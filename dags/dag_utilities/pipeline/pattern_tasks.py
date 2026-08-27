@@ -282,7 +282,7 @@ def legacy_to_bronze(config, feed_id, contract_id, legacy_source_type,
     spark_config_builder = SparkConfigBuilder()
     if legacy_source_type in ("COBOL", "EBCDIC"):
         spark_config_builder.with_package("za.co.absa:cobrix_2.12:2.6.3")
-    spark_config = spark_config_builder.build()
+    platform_spark_config = spark_config_builder.build()
 
     arguments = {
         "--feed-id": feed_id,
@@ -304,7 +304,7 @@ def legacy_to_bronze(config, feed_id, contract_id, legacy_source_type,
         job_name="legacy_to_bronze",
         job_path="spark_jobs/raw_to_bronze.py",
         arguments=arguments,
-        spark_config=spark_config,
+        platform_spark_config=platform_spark_config,
     )
 
     if not result.success:
@@ -397,7 +397,7 @@ def consume_streaming_batch(config, feed_id, contract_id, streaming_source,
         spark_config_builder.with_package("org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0")
     elif streaming_source == "PUBSUB":
         spark_config_builder.with_package("com.google.cloud.spark:spark-bigquery-with-dependencies_2.12:0.32.0")
-    spark_config = spark_config_builder.build()
+    platform_spark_config = spark_config_builder.build()
 
     arguments = {
         "--feed-id": feed_id,
@@ -422,7 +422,7 @@ def consume_streaming_batch(config, feed_id, contract_id, streaming_source,
         job_name="streaming_to_bronze",
         job_path="spark_jobs/raw_to_bronze.py",
         arguments=arguments,
-        spark_config=spark_config,
+        platform_spark_config=platform_spark_config,
     )
 
     if not result.success:

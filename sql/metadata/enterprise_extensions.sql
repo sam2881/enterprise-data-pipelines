@@ -9,12 +9,12 @@
 -- Purpose: Track data flow between pipelines for impact analysis
 -- =============================================================================
 
-CREATE TABLE IF NOT EXISTS data_lineage (
+CREATE TABLE IF NOT EXISTS platform_data_lineage (
     lineage_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 
     -- Source and Target Pipelines
-    upstream_pipeline_id UUID REFERENCES pipeline_registry(pipeline_id),
-    downstream_pipeline_id UUID REFERENCES pipeline_registry(pipeline_id),
+    upstream_pipeline_id UUID REFERENCES platform_pipeline_registry(pipeline_id),
+    downstream_pipeline_id UUID REFERENCES platform_pipeline_registry(pipeline_id),
 
     -- Relationship Details
     relationship_type VARCHAR(50) NOT NULL, -- 'reads_from', 'writes_to', 'depends_on', 'triggers'
@@ -34,17 +34,17 @@ CREATE TABLE IF NOT EXISTS data_lineage (
     CONSTRAINT unique_lineage UNIQUE (upstream_pipeline_id, downstream_pipeline_id, relationship_type)
 );
 
-CREATE INDEX idx_lineage_upstream ON data_lineage(upstream_pipeline_id);
-CREATE INDEX idx_lineage_downstream ON data_lineage(downstream_pipeline_id);
+CREATE INDEX idx_lineage_upstream ON platform_data_lineage(upstream_pipeline_id);
+CREATE INDEX idx_lineage_downstream ON platform_data_lineage(downstream_pipeline_id);
 
 -- =============================================================================
 -- B. DATA CONTRACTS
 -- Purpose: Define expectations for data producers and consumers
 -- =============================================================================
 
-CREATE TABLE IF NOT EXISTS data_contracts (
+CREATE TABLE IF NOT EXISTS platform_data_contracts (
     contract_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    pipeline_id UUID NOT NULL REFERENCES pipeline_registry(pipeline_id) ON DELETE CASCADE,
+    pipeline_id UUID NOT NULL REFERENCES platform_pipeline_registry(pipeline_id) ON DELETE CASCADE,
 
     -- Contract Identity
     contract_name VARCHAR(255) NOT NULL,
@@ -82,18 +82,18 @@ CREATE TABLE IF NOT EXISTS data_contracts (
     CONSTRAINT unique_contract_version UNIQUE (pipeline_id, contract_version)
 );
 
-CREATE INDEX idx_contract_pipeline ON data_contracts(pipeline_id);
-CREATE INDEX idx_contract_status ON data_contracts(status);
+CREATE INDEX idx_contract_pipeline ON platform_data_contracts(pipeline_id);
+CREATE INDEX idx_contract_status ON platform_data_contracts(status);
 
 -- =============================================================================
 -- C. SCHEMA CHANGE HISTORY
 -- Purpose: Track all schema evolution for audit and rollback
 -- =============================================================================
 
-CREATE TABLE IF NOT EXISTS schema_changes (
+CREATE TABLE IF NOT EXISTS platform_schema_changes (
     change_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    schema_id UUID NOT NULL REFERENCES pipeline_schemas(schema_id),
-    pipeline_id UUID NOT NULL REFERENCES pipeline_registry(pipeline_id),
+    schema_id UUID NOT NULL REFERENCES platform_pipeline_schemas(schema_id),
+    pipeline_id UUID NOT NULL REFERENCES platform_pipeline_registry(pipeline_id),
 
     -- Change Details
     change_type VARCHAR(50) NOT NULL,      -- add_column, drop_column, rename_column, modify_type, reorder
@@ -128,18 +128,18 @@ CREATE TABLE IF NOT EXISTS schema_changes (
     CONSTRAINT valid_version_progression CHECK (new_schema_version > previous_schema_version)
 );
 
-CREATE INDEX idx_schema_change_pipeline ON schema_changes(pipeline_id);
-CREATE INDEX idx_schema_change_type ON schema_changes(change_type);
-CREATE INDEX idx_schema_change_approval ON schema_changes(approval_status);
+CREATE INDEX idx_schema_change_pipeline ON platform_schema_changes(pipeline_id);
+CREATE INDEX idx_schema_change_type ON platform_schema_changes(change_type);
+CREATE INDEX idx_schema_change_approval ON platform_schema_changes(approval_status);
 
 -- =============================================================================
 -- D. TRANSFORMATION RULES (Enhanced for NLP Support)
 -- Purpose: Store business logic with support for multiple input formats
 -- =============================================================================
 
-CREATE TABLE IF NOT EXISTS transformation_rules (
+CREATE TABLE IF NOT EXISTS platform_transformation_rules (
     rule_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    pipeline_id UUID NOT NULL REFERENCES pipeline_registry(pipeline_id) ON DELETE CASCADE,
+    pipeline_id UUID NOT NULL REFERENCES platform_pipeline_registry(pipeline_id) ON DELETE CASCADE,
 
     -- Rule Identity
     rule_name VARCHAR(255) NOT NULL,
@@ -184,18 +184,18 @@ CREATE TABLE IF NOT EXISTS transformation_rules (
     CONSTRAINT unique_rule_order UNIQUE (pipeline_id, layer, execution_order)
 );
 
-CREATE INDEX idx_transform_rule_pipeline ON transformation_rules(pipeline_id);
-CREATE INDEX idx_transform_rule_layer ON transformation_rules(layer);
-CREATE INDEX idx_transform_rule_type ON transformation_rules(rule_type);
+CREATE INDEX idx_transform_rule_pipeline ON platform_transformation_rules(pipeline_id);
+CREATE INDEX idx_transform_rule_layer ON platform_transformation_rules(layer);
+CREATE INDEX idx_transform_rule_type ON platform_transformation_rules(rule_type);
 
 -- =============================================================================
 -- E. COST TRACKING
 -- Purpose: Track GCP resource costs per pipeline for FinOps
 -- =============================================================================
 
-CREATE TABLE IF NOT EXISTS pipeline_costs (
+CREATE TABLE IF NOT EXISTS platform_pipeline_costs (
     cost_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    pipeline_id UUID NOT NULL REFERENCES pipeline_registry(pipeline_id),
+    pipeline_id UUID NOT NULL REFERENCES platform_pipeline_registry(pipeline_id),
 
     -- Time Period
     cost_date DATE NOT NULL,
@@ -228,17 +228,17 @@ CREATE TABLE IF NOT EXISTS pipeline_costs (
     CONSTRAINT unique_cost_period UNIQUE (pipeline_id, cost_date, cost_period)
 );
 
-CREATE INDEX idx_cost_pipeline ON pipeline_costs(pipeline_id);
-CREATE INDEX idx_cost_date ON pipeline_costs(cost_date);
+CREATE INDEX idx_cost_pipeline ON platform_pipeline_costs(pipeline_id);
+CREATE INDEX idx_cost_date ON platform_pipeline_costs(cost_date);
 
 -- =============================================================================
 -- F. GOVERNANCE & APPROVALS
 -- Purpose: Multi-step approval workflows for production changes
 -- =============================================================================
 
-CREATE TABLE IF NOT EXISTS approval_requests (
+CREATE TABLE IF NOT EXISTS platform_approval_requests (
     approval_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    pipeline_id UUID NOT NULL REFERENCES pipeline_registry(pipeline_id),
+    pipeline_id UUID NOT NULL REFERENCES platform_pipeline_registry(pipeline_id),
 
     -- Request Details
     request_type VARCHAR(50) NOT NULL,     -- deploy_prod, schema_change, access_grant, cost_increase
@@ -262,23 +262,23 @@ CREATE TABLE IF NOT EXISTS approval_requests (
     completed_at TIMESTAMP WITH TIME ZONE,
 
     -- Related Artifacts
-    related_change_id UUID,                -- Link to schema_changes if applicable
+    related_change_id UUID,                -- Link to platform_schema_changes if applicable
     related_execution_id UUID,
 
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE INDEX idx_approval_pipeline ON approval_requests(pipeline_id);
-CREATE INDEX idx_approval_status ON approval_requests(status);
-CREATE INDEX idx_approval_requestor ON approval_requests(requested_by);
+CREATE INDEX idx_approval_pipeline ON platform_approval_requests(pipeline_id);
+CREATE INDEX idx_approval_status ON platform_approval_requests(status);
+CREATE INDEX idx_approval_requestor ON platform_approval_requests(requested_by);
 
 -- =============================================================================
 -- G. DATA PRODUCTS REGISTRY
 -- Purpose: Link pipelines to business domains and data products
 -- =============================================================================
 
-CREATE TABLE IF NOT EXISTS data_products (
+CREATE TABLE IF NOT EXISTS platform_data_products (
     product_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 
     -- Product Identity
@@ -291,7 +291,7 @@ CREATE TABLE IF NOT EXISTS data_products (
     business_owner VARCHAR(255),
 
     -- Classification
-    data_classification VARCHAR(50) DEFAULT 'internal', -- public, internal, confidential, restricted
+    platform_data_classification VARCHAR(50) DEFAULT 'internal', -- public, internal, confidential, restricted
     sensitivity_level VARCHAR(20) DEFAULT 'low',        -- low, medium, high, critical
 
     -- Compliance
@@ -309,9 +309,9 @@ CREATE TABLE IF NOT EXISTS data_products (
 );
 
 -- Link table: Pipelines to Data Products (many-to-many)
-CREATE TABLE IF NOT EXISTS pipeline_data_products (
-    pipeline_id UUID REFERENCES pipeline_registry(pipeline_id) ON DELETE CASCADE,
-    product_id UUID REFERENCES data_products(product_id) ON DELETE CASCADE,
+CREATE TABLE IF NOT EXISTS platform_pipeline_data_products (
+    pipeline_id UUID REFERENCES platform_pipeline_registry(pipeline_id) ON DELETE CASCADE,
+    product_id UUID REFERENCES platform_data_products(product_id) ON DELETE CASCADE,
     relationship_type VARCHAR(50) DEFAULT 'produces', -- produces, consumes
     is_primary BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -319,18 +319,18 @@ CREATE TABLE IF NOT EXISTS pipeline_data_products (
     PRIMARY KEY (pipeline_id, product_id)
 );
 
-CREATE INDEX idx_product_domain ON data_products(business_domain);
-CREATE INDEX idx_product_classification ON data_products(data_classification);
+CREATE INDEX idx_product_domain ON platform_data_products(business_domain);
+CREATE INDEX idx_product_classification ON platform_data_products(platform_data_classification);
 
 -- =============================================================================
 -- H. OBSERVABILITY METRICS
 -- Purpose: Track performance metrics for trending and alerting
 -- =============================================================================
 
-CREATE TABLE IF NOT EXISTS pipeline_metrics (
+CREATE TABLE IF NOT EXISTS platform_pipeline_metrics (
     metric_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    pipeline_id UUID NOT NULL REFERENCES pipeline_registry(pipeline_id),
-    execution_id UUID REFERENCES pipeline_executions(execution_id),
+    pipeline_id UUID NOT NULL REFERENCES platform_pipeline_registry(pipeline_id),
+    execution_id UUID REFERENCES platform_pipeline_executions(execution_id),
 
     -- Time Window
     metric_timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -359,9 +359,9 @@ CREATE TABLE IF NOT EXISTS pipeline_metrics (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE INDEX idx_metrics_pipeline ON pipeline_metrics(pipeline_id);
-CREATE INDEX idx_metrics_timestamp ON pipeline_metrics(metric_timestamp);
-CREATE INDEX idx_metrics_sla ON pipeline_metrics(sla_met);
+CREATE INDEX idx_metrics_pipeline ON platform_pipeline_metrics(pipeline_id);
+CREATE INDEX idx_metrics_timestamp ON platform_pipeline_metrics(metric_timestamp);
+CREATE INDEX idx_metrics_sla ON platform_pipeline_metrics(sla_met);
 
 -- Partition by month for large scale
 -- Note: Implement table partitioning in production
@@ -402,18 +402,18 @@ SELECT
         ELSE 'unknown'
     END AS health_status
 
-FROM pipeline_registry pr
+FROM platform_pipeline_registry pr
 LEFT JOIN LATERAL (
     SELECT status, executed_at, records_written, quality_score
-    FROM pipeline_executions pe
+    FROM platform_pipeline_executions pe
     WHERE pe.pipeline_id = pr.pipeline_id
     ORDER BY executed_at DESC
     LIMIT 1
 ) le ON TRUE
-LEFT JOIN data_contracts dc ON dc.pipeline_id = pr.pipeline_id AND dc.status = 'active'
+LEFT JOIN platform_data_contracts dc ON dc.pipeline_id = pr.pipeline_id AND dc.status = 'active'
 LEFT JOIN LATERAL (
     SELECT SUM(total_cost) AS total_cost
-    FROM pipeline_costs pc
+    FROM platform_pipeline_costs pc
     WHERE pc.pipeline_id = pr.pipeline_id
     AND pc.cost_date >= CURRENT_DATE - INTERVAL '30 days'
 ) cost_30d ON TRUE
@@ -431,9 +431,9 @@ SELECT
     dp.domain AS target_domain,
     dl.relationship_type,
     dl.lineage_depth
-FROM data_lineage dl
-JOIN pipeline_registry up ON dl.upstream_pipeline_id = up.pipeline_id
-JOIN pipeline_registry dp ON dl.downstream_pipeline_id = dp.pipeline_id
+FROM platform_data_lineage dl
+JOIN platform_pipeline_registry up ON dl.upstream_pipeline_id = up.pipeline_id
+JOIN platform_pipeline_registry dp ON dl.downstream_pipeline_id = dp.pipeline_id
 WHERE dl.is_active = TRUE;
 
 -- View: Schema Change Audit
@@ -452,8 +452,8 @@ SELECT
     sc.approved_by,
     sc.created_at AS change_requested_at,
     sc.approved_at
-FROM schema_changes sc
-JOIN pipeline_registry pr ON sc.pipeline_id = pr.pipeline_id
+FROM platform_schema_changes sc
+JOIN platform_pipeline_registry pr ON sc.pipeline_id = pr.pipeline_id
 ORDER BY sc.created_at DESC;
 
 -- =============================================================================
@@ -476,7 +476,7 @@ BEGIN
         SELECT
             dl.downstream_pipeline_id,
             1 AS depth
-        FROM data_lineage dl
+        FROM platform_data_lineage dl
         WHERE dl.upstream_pipeline_id = p_pipeline_id
         AND dl.is_active = TRUE
 
@@ -486,7 +486,7 @@ BEGIN
         SELECT
             dl.downstream_pipeline_id,
             d.depth + 1
-        FROM data_lineage dl
+        FROM platform_data_lineage dl
         JOIN downstream d ON dl.upstream_pipeline_id = d.downstream_pipeline_id
         WHERE dl.is_active = TRUE
         AND d.depth < 10  -- Prevent infinite loops
@@ -498,7 +498,7 @@ BEGIN
         pr.domain,
         MIN(d.depth) AS lineage_depth
     FROM downstream d
-    JOIN pipeline_registry pr ON d.downstream_pipeline_id = pr.pipeline_id
+    JOIN platform_pipeline_registry pr ON d.downstream_pipeline_id = pr.pipeline_id
     GROUP BY pr.pipeline_id, pr.dag_id, pr.pipeline_name, pr.domain
     ORDER BY lineage_depth, pr.dag_id;
 END;
@@ -529,7 +529,7 @@ BEGIN
             ORDER BY pc.cost_date
             ROWS BETWEEN 6 PRECEDING AND CURRENT ROW
         ), 2) AS running_avg_7d
-    FROM pipeline_costs pc
+    FROM platform_pipeline_costs pc
     WHERE pc.pipeline_id = p_pipeline_id
     AND pc.cost_date >= CURRENT_DATE - p_days
     ORDER BY pc.cost_date;
@@ -557,11 +557,11 @@ DECLARE
 BEGIN
     -- Get next execution order for this layer
     SELECT COALESCE(MAX(execution_order), 0) + 1 INTO v_next_order
-    FROM transformation_rules
+    FROM platform_transformation_rules
     WHERE pipeline_id = p_pipeline_id AND layer = p_layer;
 
     -- Insert the rule
-    INSERT INTO transformation_rules (
+    INSERT INTO platform_transformation_rules (
         pipeline_id, rule_name, layer, execution_order, rule_type,
         input_format, source_columns, target_column,
         structured_config, sql_expression, nl_description, created_by
@@ -592,7 +592,7 @@ BEGIN
     -- Calculate total approval steps
     v_total_steps := jsonb_array_length(p_approval_chain);
 
-    INSERT INTO approval_requests (
+    INSERT INTO platform_approval_requests (
         pipeline_id, request_type, request_description,
         requested_by, approval_chain, total_steps
     ) VALUES (
@@ -610,11 +610,11 @@ $$ LANGUAGE plpgsql;
 -- =============================================================================
 
 -- These are template patterns - actual values come from Jinja2 templates
-COMMENT ON TABLE pipeline_registry IS 'INSERT: When new pipeline onboarded. UPDATE: When config changes.';
-COMMENT ON TABLE pipeline_sources IS 'INSERT: With new pipeline. UPDATE: When source changes.';
-COMMENT ON TABLE pipeline_schemas IS 'INSERT: Each schema version. UPDATE: Set is_current=false on new version.';
-COMMENT ON TABLE transformation_rules IS 'INSERT: Each rule defined. UPDATE: When rule logic changes.';
-COMMENT ON TABLE data_contracts IS 'INSERT: When SLA defined. UPDATE: When thresholds change.';
-COMMENT ON TABLE schema_changes IS 'INSERT: Every schema modification. NEVER UPDATE.';
-COMMENT ON TABLE pipeline_costs IS 'INSERT: Daily cost aggregation. NEVER UPDATE.';
-COMMENT ON TABLE pipeline_metrics IS 'INSERT: After each execution. NEVER UPDATE.';
+COMMENT ON TABLE platform_pipeline_registry IS 'INSERT: When new pipeline onboarded. UPDATE: When config changes.';
+COMMENT ON TABLE platform_pipeline_sources IS 'INSERT: With new pipeline. UPDATE: When source changes.';
+COMMENT ON TABLE platform_pipeline_schemas IS 'INSERT: Each schema version. UPDATE: Set is_current=false on new version.';
+COMMENT ON TABLE platform_transformation_rules IS 'INSERT: Each rule defined. UPDATE: When rule logic changes.';
+COMMENT ON TABLE platform_data_contracts IS 'INSERT: When SLA defined. UPDATE: When thresholds change.';
+COMMENT ON TABLE platform_schema_changes IS 'INSERT: Every schema modification. NEVER UPDATE.';
+COMMENT ON TABLE platform_pipeline_costs IS 'INSERT: Daily cost aggregation. NEVER UPDATE.';
+COMMENT ON TABLE platform_pipeline_metrics IS 'INSERT: After each execution. NEVER UPDATE.';

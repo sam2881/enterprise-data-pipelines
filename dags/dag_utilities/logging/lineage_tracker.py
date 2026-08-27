@@ -53,7 +53,7 @@ class LineageTracker:
         lineage_id = str(uuid.uuid4())
 
         query = """
-            INSERT INTO data_lineage (
+            INSERT INTO platform_data_lineage (
                 lineage_id, execution_id, source_entity, target_entity,
                 transform_type, column_mapping, row_count, created_at
             ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
@@ -137,7 +137,7 @@ class LineageTracker:
             SELECT
                 lineage_id, source_entity, target_entity,
                 transform_type, column_mapping, row_count, created_at
-            FROM data_lineage
+            FROM platform_data_lineage
             WHERE execution_id = %s
             ORDER BY created_at
         """
@@ -159,7 +159,7 @@ class LineageTracker:
                 SELECT
                     lineage_id, source_entity, target_entity,
                     transform_type, 1 as depth
-                FROM data_lineage
+                FROM platform_data_lineage
                 WHERE target_entity = %s
 
                 UNION ALL
@@ -168,7 +168,7 @@ class LineageTracker:
                 SELECT
                     dl.lineage_id, dl.source_entity, dl.target_entity,
                     dl.transform_type, lt.depth + 1
-                FROM data_lineage dl
+                FROM platform_data_lineage dl
                 JOIN lineage_trace lt ON dl.target_entity = lt.source_entity
                 WHERE lt.depth < %s
             )
@@ -193,7 +193,7 @@ class LineageTracker:
                 SELECT
                     lineage_id, source_entity, target_entity,
                     transform_type, 1 as depth
-                FROM data_lineage
+                FROM platform_data_lineage
                 WHERE source_entity = %s
 
                 UNION ALL
@@ -202,7 +202,7 @@ class LineageTracker:
                 SELECT
                     dl.lineage_id, dl.source_entity, dl.target_entity,
                     dl.transform_type, lt.depth + 1
-                FROM data_lineage dl
+                FROM platform_data_lineage dl
                 JOIN lineage_trace lt ON dl.source_entity = lt.target_entity
                 WHERE lt.depth < %s
             )

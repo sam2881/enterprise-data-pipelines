@@ -8,9 +8,9 @@
 -- │    Tracks each pipeline run                                              │
 -- └─────────────────────────────────────────────────────────────────────────┘
 
-CREATE TABLE IF NOT EXISTS pipeline_execution (
+CREATE TABLE IF NOT EXISTS platform_pipeline_execution (
     execution_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    feed_id UUID NOT NULL REFERENCES feed(feed_id),
+    feed_id UUID NOT NULL REFERENCES platform_feed(feed_id),
     dag_run_id VARCHAR(500) NOT NULL,
     execution_date DATE NOT NULL,
     sequence INTEGER NOT NULL DEFAULT 1,  -- Auto-increments per feed_id + execution_date re-run
@@ -40,20 +40,20 @@ CREATE TABLE IF NOT EXISTS pipeline_execution (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_execution_feed ON pipeline_execution(feed_id);
-CREATE INDEX idx_execution_date ON pipeline_execution(execution_date);
-CREATE INDEX idx_execution_status ON pipeline_execution(status);
-CREATE INDEX idx_execution_start ON pipeline_execution(start_ts);
-CREATE INDEX idx_execution_dag_run ON pipeline_execution(dag_run_id);
+CREATE INDEX idx_execution_feed ON platform_pipeline_execution(feed_id);
+CREATE INDEX idx_execution_date ON platform_pipeline_execution(execution_date);
+CREATE INDEX idx_execution_status ON platform_pipeline_execution(status);
+CREATE INDEX idx_execution_start ON platform_pipeline_execution(start_ts);
+CREATE INDEX idx_execution_dag_run ON platform_pipeline_execution(dag_run_id);
 
 -- ┌─────────────────────────────────────────────────────────────────────────┐
 -- │ 2. TASK EXECUTION                                                        │
 -- │    Tracks individual task runs within a pipeline                         │
 -- └─────────────────────────────────────────────────────────────────────────┘
 
-CREATE TABLE IF NOT EXISTS task_execution (
+CREATE TABLE IF NOT EXISTS platform_task_execution (
     task_exec_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    execution_id UUID NOT NULL REFERENCES pipeline_execution(execution_id),
+    execution_id UUID NOT NULL REFERENCES platform_pipeline_execution(execution_id),
     task_id VARCHAR(200) NOT NULL,
     task_type VARCHAR(100),  -- PYTHON, SPARK, SENSOR, BRANCH
 
@@ -82,18 +82,18 @@ CREATE TABLE IF NOT EXISTS task_execution (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_task_execution_exec ON task_execution(execution_id);
-CREATE INDEX idx_task_execution_task ON task_execution(task_id);
-CREATE INDEX idx_task_execution_status ON task_execution(status);
+CREATE INDEX idx_task_execution_exec ON platform_task_execution(execution_id);
+CREATE INDEX idx_task_execution_task ON platform_task_execution(task_id);
+CREATE INDEX idx_task_execution_status ON platform_task_execution(status);
 
 -- ┌─────────────────────────────────────────────────────────────────────────┐
 -- │ 3. AUDIT LOG                                                             │
 -- │    Zone-level audit trail for data processing                            │
 -- └─────────────────────────────────────────────────────────────────────────┘
 
-CREATE TABLE IF NOT EXISTS audit_log (
+CREATE TABLE IF NOT EXISTS platform_audit_log (
     audit_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    execution_id UUID NOT NULL REFERENCES pipeline_execution(execution_id),
+    execution_id UUID NOT NULL REFERENCES platform_pipeline_execution(execution_id),
     zone_level VARCHAR(20) NOT NULL,
     action_type VARCHAR(100) NOT NULL,  -- FILE_FOUND, COPY, MOVE, TRANSFORM, VALIDATE, etc.
     entity_name VARCHAR(500),  -- File path, table name, etc.
@@ -103,19 +103,19 @@ CREATE TABLE IF NOT EXISTS audit_log (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_audit_execution ON audit_log(execution_id);
-CREATE INDEX idx_audit_zone ON audit_log(zone_level);
-CREATE INDEX idx_audit_action ON audit_log(action_type);
-CREATE INDEX idx_audit_created ON audit_log(created_at);
+CREATE INDEX idx_audit_execution ON platform_audit_log(execution_id);
+CREATE INDEX idx_audit_zone ON platform_audit_log(zone_level);
+CREATE INDEX idx_audit_action ON platform_audit_log(action_type);
+CREATE INDEX idx_audit_created ON platform_audit_log(created_at);
 
 -- ┌─────────────────────────────────────────────────────────────────────────┐
 -- │ 4. DATA LINEAGE                                                          │
 -- │    Tracks data flow between entities                                     │
 -- └─────────────────────────────────────────────────────────────────────────┘
 
-CREATE TABLE IF NOT EXISTS data_lineage (
+CREATE TABLE IF NOT EXISTS platform_data_lineage (
     lineage_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    execution_id UUID NOT NULL REFERENCES pipeline_execution(execution_id),
+    execution_id UUID NOT NULL REFERENCES platform_pipeline_execution(execution_id),
     source_entity VARCHAR(500) NOT NULL,
     target_entity VARCHAR(500) NOT NULL,
     transform_type VARCHAR(100),  -- COPY, VIEW, SPARK, MERGE
@@ -124,19 +124,19 @@ CREATE TABLE IF NOT EXISTS data_lineage (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_lineage_execution ON data_lineage(execution_id);
-CREATE INDEX idx_lineage_source ON data_lineage(source_entity);
-CREATE INDEX idx_lineage_target ON data_lineage(target_entity);
+CREATE INDEX idx_lineage_execution ON platform_data_lineage(execution_id);
+CREATE INDEX idx_lineage_source ON platform_data_lineage(source_entity);
+CREATE INDEX idx_lineage_target ON platform_data_lineage(target_entity);
 
 -- ┌─────────────────────────────────────────────────────────────────────────┐
 -- │ 5. VALIDATION LOG                                                        │
 -- │    Records validation rule execution results                             │
 -- └─────────────────────────────────────────────────────────────────────────┘
 
-CREATE TABLE IF NOT EXISTS validation_log (
+CREATE TABLE IF NOT EXISTS platform_validation_log (
     validation_log_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    execution_id UUID NOT NULL REFERENCES pipeline_execution(execution_id),
-    validation_id UUID NOT NULL REFERENCES validation_rule(validation_id),
+    execution_id UUID NOT NULL REFERENCES platform_pipeline_execution(execution_id),
+    validation_id UUID NOT NULL REFERENCES platform_validation_rule(validation_id),
     zone_level VARCHAR(20) NOT NULL,
     validation_type VARCHAR(50) NOT NULL,
     rule_name VARCHAR(200) NOT NULL,
@@ -159,19 +159,19 @@ CREATE TABLE IF NOT EXISTS validation_log (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_validation_log_execution ON validation_log(execution_id);
-CREATE INDEX idx_validation_log_zone ON validation_log(zone_level);
-CREATE INDEX idx_validation_log_passed ON validation_log(is_passed);
+CREATE INDEX idx_validation_log_execution ON platform_validation_log(execution_id);
+CREATE INDEX idx_validation_log_zone ON platform_validation_log(zone_level);
+CREATE INDEX idx_validation_log_passed ON platform_validation_log(is_passed);
 
 -- ┌─────────────────────────────────────────────────────────────────────────┐
 -- │ 6. ERROR LOG                                                             │
 -- │    Detailed error tracking with context                                  │
 -- └─────────────────────────────────────────────────────────────────────────┘
 
-CREATE TABLE IF NOT EXISTS error_log (
+CREATE TABLE IF NOT EXISTS platform_error_log (
     error_log_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    execution_id UUID REFERENCES pipeline_execution(execution_id),
-    task_exec_id UUID REFERENCES task_execution(task_exec_id),
+    execution_id UUID REFERENCES platform_pipeline_execution(execution_id),
+    task_exec_id UUID REFERENCES platform_task_execution(task_exec_id),
     error_type VARCHAR(100) NOT NULL,
     error_code VARCHAR(50),
     error_message TEXT NOT NULL,
@@ -185,16 +185,16 @@ CREATE TABLE IF NOT EXISTS error_log (
     resolved_at TIMESTAMP
 );
 
-CREATE INDEX idx_error_execution ON error_log(execution_id);
-CREATE INDEX idx_error_type ON error_log(error_type);
-CREATE INDEX idx_error_status ON error_log(resolution_status);
+CREATE INDEX idx_error_execution ON platform_error_log(execution_id);
+CREATE INDEX idx_error_type ON platform_error_log(error_type);
+CREATE INDEX idx_error_status ON platform_error_log(resolution_status);
 
 -- ┌─────────────────────────────────────────────────────────────────────────┐
 -- │ 7. METADATA AUDIT LOG                                                    │
 -- │    Tracks all metadata changes                                           │
 -- └─────────────────────────────────────────────────────────────────────────┘
 
-CREATE TABLE IF NOT EXISTS metadata_audit_log (
+CREATE TABLE IF NOT EXISTS platform_metadata_audit_log (
     audit_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     table_name VARCHAR(100) NOT NULL,
     operation_type VARCHAR(20) NOT NULL,  -- INSERT, UPDATE, DELETE, SCHEMA_EVOLUTION
@@ -207,16 +207,16 @@ CREATE TABLE IF NOT EXISTS metadata_audit_log (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_metadata_audit_table ON metadata_audit_log(table_name);
-CREATE INDEX idx_metadata_audit_record ON metadata_audit_log(record_id);
-CREATE INDEX idx_metadata_audit_operation ON metadata_audit_log(operation_type);
+CREATE INDEX idx_metadata_audit_table ON platform_metadata_audit_log(table_name);
+CREATE INDEX idx_metadata_audit_record ON platform_metadata_audit_log(record_id);
+CREATE INDEX idx_metadata_audit_operation ON platform_metadata_audit_log(operation_type);
 
 -- ┌─────────────────────────────────────────────────────────────────────────┐
 -- │ 8. AGENT DECISION LOG                                                    │
 -- │    Tracks autonomous agent decisions                                     │
 -- └─────────────────────────────────────────────────────────────────────────┘
 
-CREATE TABLE IF NOT EXISTS agent_decision_log (
+CREATE TABLE IF NOT EXISTS platform_agent_decision_log (
     decision_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     decision_type VARCHAR(100) NOT NULL,  -- TEMPLATE_SELECTION, PATTERN_MATCH, etc.
     input_context JSONB NOT NULL,
@@ -224,21 +224,21 @@ CREATE TABLE IF NOT EXISTS agent_decision_log (
     decision_rationale TEXT NOT NULL,
     alternatives_considered JSONB,
     confidence_score DECIMAL(3,2),  -- 0.00 to 1.00
-    execution_id UUID REFERENCES pipeline_execution(execution_id),
+    execution_id UUID REFERENCES platform_pipeline_execution(execution_id),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_agent_decision_type ON agent_decision_log(decision_type);
-CREATE INDEX idx_agent_decision_created ON agent_decision_log(created_at);
+CREATE INDEX idx_agent_decision_type ON platform_agent_decision_log(decision_type);
+CREATE INDEX idx_agent_decision_created ON platform_agent_decision_log(created_at);
 
 -- ┌─────────────────────────────────────────────────────────────────────────┐
 -- │ 9. TEMPLATE CHANGE LOG                                                   │
 -- │    Tracks changes to DAG templates                                       │
 -- └─────────────────────────────────────────────────────────────────────────┘
 
-CREATE TABLE IF NOT EXISTS template_change_log (
+CREATE TABLE IF NOT EXISTS platform_template_change_log (
     change_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    template_id UUID NOT NULL REFERENCES dag_template(template_id),
+    template_id UUID NOT NULL REFERENCES platform_dag_template(template_id),
     change_type VARCHAR(50) NOT NULL,  -- EXTENSION, MODIFICATION, DEPRECATION
     change_description TEXT NOT NULL,
     previous_template TEXT,
@@ -251,18 +251,18 @@ CREATE TABLE IF NOT EXISTS template_change_log (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_template_change_template ON template_change_log(template_id);
-CREATE INDEX idx_template_change_type ON template_change_log(change_type);
+CREATE INDEX idx_template_change_template ON platform_template_change_log(template_id);
+CREATE INDEX idx_template_change_type ON platform_template_change_log(change_type);
 
 -- ┌─────────────────────────────────────────────────────────────────────────┐
 -- │ 10. SLA BREACH LOG                                                       │
 -- │    Tracks SLA violations                                                 │
 -- └─────────────────────────────────────────────────────────────────────────┘
 
-CREATE TABLE IF NOT EXISTS sla_breach_log (
+CREATE TABLE IF NOT EXISTS platform_sla_breach_log (
     breach_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    sla_id UUID NOT NULL REFERENCES sla_definition(sla_id),
-    execution_id UUID NOT NULL REFERENCES pipeline_execution(execution_id),
+    sla_id UUID NOT NULL REFERENCES platform_sla_definition(sla_id),
+    execution_id UUID NOT NULL REFERENCES platform_pipeline_execution(execution_id),
     breach_type VARCHAR(50) NOT NULL,  -- WARNING, CRITICAL
     expected_value INTEGER,
     actual_value INTEGER,
@@ -274,18 +274,18 @@ CREATE TABLE IF NOT EXISTS sla_breach_log (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_sla_breach_sla ON sla_breach_log(sla_id);
-CREATE INDEX idx_sla_breach_execution ON sla_breach_log(execution_id);
-CREATE INDEX idx_sla_breach_type ON sla_breach_log(breach_type);
+CREATE INDEX idx_sla_breach_sla ON platform_sla_breach_log(sla_id);
+CREATE INDEX idx_sla_breach_execution ON platform_sla_breach_log(execution_id);
+CREATE INDEX idx_sla_breach_type ON platform_sla_breach_log(breach_type);
 
 -- ┌─────────────────────────────────────────────────────────────────────────┐
 -- │ 11. EXECUTION COST LOG                                                   │
 -- │    Tracks resource usage and costs                                       │
 -- └─────────────────────────────────────────────────────────────────────────┘
 
-CREATE TABLE IF NOT EXISTS execution_cost_log (
+CREATE TABLE IF NOT EXISTS platform_execution_cost_log (
     cost_log_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    execution_id UUID NOT NULL REFERENCES pipeline_execution(execution_id),
+    execution_id UUID NOT NULL REFERENCES platform_pipeline_execution(execution_id),
     resource_type VARCHAR(50) NOT NULL,  -- SPARK, STORAGE, NETWORK
     resource_details JSONB,
     quantity DECIMAL(15,4),
@@ -295,5 +295,5 @@ CREATE TABLE IF NOT EXISTS execution_cost_log (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_cost_execution ON execution_cost_log(execution_id);
-CREATE INDEX idx_cost_resource ON execution_cost_log(resource_type);
+CREATE INDEX idx_cost_execution ON platform_execution_cost_log(execution_id);
+CREATE INDEX idx_cost_resource ON platform_execution_cost_log(resource_type);

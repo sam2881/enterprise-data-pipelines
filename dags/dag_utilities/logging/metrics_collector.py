@@ -111,7 +111,7 @@ class MetricsCollector:
         total_cost = quantity * unit_cost
 
         query = """
-            INSERT INTO execution_cost_log (
+            INSERT INTO platform_execution_cost_log (
                 cost_log_id, execution_id, resource_type,
                 quantity, unit, unit_cost, total_cost, created_at
             ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)

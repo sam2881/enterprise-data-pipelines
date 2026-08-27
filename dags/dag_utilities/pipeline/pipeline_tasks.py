@@ -143,7 +143,7 @@ def handle_validation_failure(**context):
 
 
 def submit_zone_job(config, job_name, job_path, feed_id, contract_id,
-                    extra_args=None, spark_config=None,
+                    extra_args=None, platform_spark_config=None,
                     metrics_xcom_key=None, **context):
     """
     Submit a Spark zone transition job.
@@ -157,7 +157,7 @@ def submit_zone_job(config, job_name, job_path, feed_id, contract_id,
         feed_id: Feed identifier
         contract_id: Contract identifier
         extra_args: Additional arguments dict to merge
-        spark_config: Optional SparkConfig override
+        platform_spark_config: Optional SparkConfig override
         metrics_xcom_key: XCom key to store result metrics (if provided)
 
     Returns:
@@ -186,8 +186,8 @@ def submit_zone_job(config, job_name, job_path, feed_id, contract_id,
         "job_path": resolved_path,
         "arguments": arguments,
     }
-    if spark_config:
-        submit_kwargs["spark_config"] = spark_config
+    if platform_spark_config:
+        submit_kwargs["platform_spark_config"] = platform_spark_config
 
     result = submitter.submit_job(**submit_kwargs)
 

@@ -59,7 +59,7 @@ BEGIN
     WHERE feed_id = p_feed_id;
 
     -- Log audit event
-    INSERT INTO audit_log (
+    INSERT INTO platform_audit_log (
         event_type,
         feed_id,
         execution_id,

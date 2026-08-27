@@ -43,7 +43,7 @@ default_args = {
 
 def initialize_execution(**context):
     """
-    Step 1: Create execution record in pipeline_execution table.
+    Step 1: Create execution record in platform_pipeline_execution table.
     Reads feed config from metadata, validates it exists.
     """
     metadata = MetadataClient()
@@ -88,7 +88,7 @@ def initialize_execution(**context):
 def check_source_files(**context):
     """
     Step 2: Verify source files exist in GCS landing zone.
-    Path comes from data_contract.source_path with {year}/{month} substitution.
+    Path comes from platform_data_contract.source_path with {year}/{month} substitution.
     """
     from google.cloud import storage as gcs
 
@@ -233,7 +233,7 @@ def process_landing_to_raw(**context):
 
 def validate_raw_zone(**context):
     """
-    Step 4: Validate raw zone data using rules from validation_rule table.
+    Step 4: Validate raw zone data using rules from platform_validation_rule table.
     Schema validation: column count, not-null checks.
     """
     metadata = MetadataClient()
@@ -289,7 +289,7 @@ def validate_raw_zone(**context):
 def process_raw_to_bronze(**context):
     """
     Step 5: Raw → Bronze zone.
-    Apply type casting from schema_version metadata.
+    Apply type casting from platform_schema_version metadata.
     Schema enforcement: cast STRING → proper types.
     """
     import pandas as pd
@@ -453,7 +453,7 @@ def process_bronze_to_silver(**context):
 
 def validate_silver_zone(**context):
     """
-    Step 7: Validate silver zone using semantic rules from validation_rule table.
+    Step 7: Validate silver zone using semantic rules from platform_validation_rule table.
     Business rule checks: ranges, allowed values, etc.
     """
     import pandas as pd
@@ -482,7 +482,7 @@ def validate_silver_zone(**context):
         with metadata.conn.cursor() as cur:
             cur.execute("""
                 SELECT expectation_type, column_name, kwargs
-                FROM quality_expectation
+                FROM platform_quality_expectation
                 WHERE contract_id = %s AND zone_level = 'silver' AND is_active = true
             """, [CONTRACT_ID])
             expectations = [dict(r) for r in cur.fetchall()]
@@ -542,11 +542,11 @@ def validate_silver_zone(**context):
         context["ti"].xcom_push(key="silver_validation_passed", value=all_passed)
         context["ti"].xcom_push(key="silver_quality_score", value=quality_score)
 
-        # Write validation results to validation_result table
+        # Write validation results to platform_validation_result table
         with metadata.conn.cursor() as cur:
             for vr in validation_results:
                 cur.execute("""
-                    INSERT INTO validation_result (
+                    INSERT INTO platform_validation_result (
                         feed_id, run_id, validation_type, zone_level,
                         expectation_type, result, column_name,
                         element_count, error_count, severity
@@ -649,7 +649,7 @@ def process_silver_to_gold(**context):
 def finalize_execution(**context):
     """
     Step 9: Finalize execution.
-    Update pipeline_execution status, record metrics, log completion.
+    Update platform_pipeline_execution status, record metrics, log completion.
     """
     metadata = MetadataClient()
     try:

@@ -192,7 +192,7 @@ INSERT INTO dag_templates (
     is_active = EXCLUDED.is_active;
 
 -- Log the generation event
-INSERT INTO audit_log (
+INSERT INTO platform_audit_log (
     event_type,
     feed_id,
     feed_group_id,
