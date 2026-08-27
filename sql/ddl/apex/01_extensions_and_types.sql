@@ -34,7 +34,7 @@ END $$;
 
 DO $$ BEGIN
     CREATE TYPE zone_level_enum AS ENUM (
-        'RAW', 'TRANSIENT', 'BRONZE', 'SILVER', 'GOLD', 'TRUSTED'
+        'RAW', 'TRANSIENT', 'BRONZE', 'SILVER', 'GOLD'
     );
 EXCEPTION
     WHEN duplicate_object THEN null;
@@ -98,5 +98,5 @@ END $$;
 
 -- Comment for documentation
 COMMENT ON TYPE source_type_enum IS 'Types of data sources supported by APEX';
-COMMENT ON TYPE zone_level_enum IS 'Data zones in medallion architecture: RAW -> TRANSIENT -> BRONZE -> SILVER -> GOLD -> TRUSTED';
+COMMENT ON TYPE zone_level_enum IS 'Data zones in medallion architecture: RAW -> TRANSIENT -> BRONZE -> SILVER -> GOLD';
 COMMENT ON TYPE pattern_code_enum IS '9 canonical pipeline patterns: P01=FILE_MEDALLION, P02=BIGDATA_FILE, P03=DATABASE_LAKEHOUSE, P04=LEGACY_MIGRATION, P05=STREAMING_BATCH, P06=API_SAAS, P07=SCD2, P08=DATA_VAULT, P09=STAR_SCHEMA';
