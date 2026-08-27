@@ -169,7 +169,7 @@ def apply_delta_merge(config, feed_id, contract_id, primary_keys, load_type,
     submitter = SparkJobSubmitter(config)
     result = submitter.submit_job(
         job_name="delta_merge",
-        job_path="spark_jobs/silver_to_gold.py",
+        job_path="spark_jobs/v2/build_gold_layer.py",
         arguments={
             "--feed-id": feed_id,
             "--contract-id": contract_id,
@@ -477,7 +477,7 @@ def process_late_data(config, feed_id, contract_id, late_data_tolerance_hours,
     submitter = SparkJobSubmitter(config)
     result = submitter.submit_job(
         job_name="process_late_data",
-        job_path="spark_jobs/bronze_to_silver.py",
+        job_path="spark_jobs/v2/promote_bronze_to_silver.py",
         arguments={
             "--feed-id": feed_id,
             "--contract-id": contract_id,
@@ -635,7 +635,7 @@ def detect_changes(config, feed_id, contract_id, business_keys, hash_col,
     submitter = SparkJobSubmitter(config)
     result = submitter.submit_job(
         job_name="scd2_change_detection",
-        job_path="spark_jobs/silver_to_gold.py",
+        job_path="spark_jobs/v2/build_gold_layer.py",
         arguments={
             "--feed-id": feed_id,
             "--contract-id": contract_id,
@@ -699,7 +699,7 @@ def apply_scd2(config, feed_id, contract_id, business_keys, tracked_columns,
     submitter = SparkJobSubmitter(config)
     result = submitter.submit_job(
         job_name="scd2_apply",
-        job_path="spark_jobs/silver_to_gold.py",
+        job_path="spark_jobs/v2/build_gold_layer.py",
         arguments={
             "--feed-id": feed_id,
             "--contract-id": contract_id,
@@ -846,7 +846,7 @@ def generate_hash_keys(config, feed_id, contract_id, hubs, links, satellites,
     submitter = SparkJobSubmitter(config)
     result = submitter.submit_job(
         job_name="generate_hash_keys",
-        job_path="spark_jobs/bronze_to_silver.py",
+        job_path="spark_jobs/v2/promote_bronze_to_silver.py",
         arguments={
             "--feed-id": feed_id,
             "--contract-id": contract_id,
@@ -876,7 +876,7 @@ def load_hubs(config, feed_id, contract_id, hubs, record_source, **context):
     for hub in hubs:
         result = submitter.submit_job(
             job_name=f"load_{hub['name']}",
-            job_path="spark_jobs/silver_to_gold.py",
+            job_path="spark_jobs/v2/build_gold_layer.py",
             arguments={
                 "--feed-id": feed_id,
                 "--contract-id": contract_id,
@@ -913,7 +913,7 @@ def load_links(config, feed_id, contract_id, links, record_source, **context):
     for link in links:
         result = submitter.submit_job(
             job_name=f"load_{link['name']}",
-            job_path="spark_jobs/silver_to_gold.py",
+            job_path="spark_jobs/v2/build_gold_layer.py",
             arguments={
                 "--feed-id": feed_id,
                 "--contract-id": contract_id,
@@ -952,7 +952,7 @@ def load_satellites(config, feed_id, contract_id, satellites, record_source,
     for sat in satellites:
         result = submitter.submit_job(
             job_name=f"load_{sat['name']}",
-            job_path="spark_jobs/silver_to_gold.py",
+            job_path="spark_jobs/v2/build_gold_layer.py",
             arguments={
                 "--feed-id": feed_id,
                 "--contract-id": contract_id,
@@ -1043,7 +1043,7 @@ def load_date_dimension(config, feed_id, contract_id, dimensions, **context):
     submitter = SparkJobSubmitter(config)
     result = submitter.submit_job(
         job_name="load_date_dimension",
-        job_path="spark_jobs/silver_to_gold.py",
+        job_path="spark_jobs/v2/build_gold_layer.py",
         arguments={
             "--feed-id": feed_id,
             "--contract-id": contract_id,
@@ -1080,7 +1080,7 @@ def load_dimensions(config, feed_id, contract_id, dimensions, **context):
         scd_type = dim.get("scd_type", 1)
         result = submitter.submit_job(
             job_name=f"load_{dim['name']}",
-            job_path="spark_jobs/silver_to_gold.py",
+            job_path="spark_jobs/v2/build_gold_layer.py",
             arguments={
                 "--feed-id": feed_id,
                 "--contract-id": contract_id,
@@ -1137,7 +1137,7 @@ def load_fact_table(config, feed_id, contract_id, fact_table, **context):
     submitter = SparkJobSubmitter(config)
     result = submitter.submit_job(
         job_name=f"load_{fact_table['name']}",
-        job_path="spark_jobs/silver_to_gold.py",
+        job_path="spark_jobs/v2/build_gold_layer.py",
         arguments={
             "--feed-id": feed_id,
             "--contract-id": contract_id,
@@ -1192,7 +1192,7 @@ def handle_late_arriving_dimensions(config, feed_id, contract_id, fact_table,
     submitter = SparkJobSubmitter(config)
     result = submitter.submit_job(
         job_name="handle_late_arriving_dims",
-        job_path="spark_jobs/silver_to_gold.py",
+        job_path="spark_jobs/v2/build_gold_layer.py",
         arguments={
             "--feed-id": feed_id,
             "--contract-id": contract_id,
@@ -1231,7 +1231,7 @@ def load_aggregates(config, feed_id, contract_id, fact_table, aggregates,
     for agg in aggregates:
         result = submitter.submit_job(
             job_name=f"load_{agg['name']}",
-            job_path="spark_jobs/silver_to_gold.py",
+            job_path="spark_jobs/v2/build_gold_layer.py",
             arguments={
                 "--feed-id": feed_id,
                 "--contract-id": contract_id,

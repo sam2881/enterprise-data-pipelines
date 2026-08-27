@@ -316,7 +316,7 @@ VALUES
      'Validates Bronze data against schema contract: column presence, nullability, types, primary keys',
      ARRAY['validation', 'schema', 'bronze']),
 
-    ('BRONZE_TO_SILVER', 'Bronze to Silver Transform', 'spark_jobs/bronze_to_silver.py', 'BRONZE', 'SILVER',
+    ('BRONZE_TO_SILVER', 'Bronze to Silver Transform', 'spark_jobs/v2/promote_bronze_to_silver.py', 'BRONZE', 'SILVER',
      ARRAY['VIEW_TRANSFORM', 'DEDUPLICATE', 'BUSINESS_KEY', 'CLEAN', 'HASH_GENERATE'],
      NULL, NULL,
      '[{"name": "--feed-id", "required": true}, {"name": "--contract-id", "required": true}, {"name": "--execution-id", "required": true}, {"name": "--execution-date", "required": true}, {"name": "--metadata-db", "required": true}]'::jsonb,
@@ -330,7 +330,7 @@ VALUES
      'Validates Silver data against business rules: referential integrity, cross-field validation, range checks',
      ARRAY['validation', 'semantic', 'silver', 'business-rules']),
 
-    ('SILVER_TO_GOLD', 'Silver to Gold Transform', 'spark_jobs/silver_to_gold.py', 'SILVER', 'GOLD',
+    ('SILVER_TO_GOLD', 'Silver to Gold Transform', 'spark_jobs/v2/build_gold_layer.py', 'SILVER', 'GOLD',
      ARRAY['AGGREGATE', 'SCD2', 'MERGE', 'DIMENSION_LOAD', 'FACT_LOAD', 'SURROGATE_KEY', 'HUB_LOAD', 'LINK_LOAD', 'SATELLITE_LOAD', 'DETECT_CHANGES'],
      NULL, NULL,
      '[{"name": "--feed-id", "required": true}, {"name": "--contract-id", "required": true}, {"name": "--execution-id", "required": true}, {"name": "--execution-date", "required": true}, {"name": "--metadata-db", "required": true}]'::jsonb,

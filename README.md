@@ -79,16 +79,16 @@ Representative DAGs include `apex_sales_csv_pipeline.py` and `apex_csv_sample_pi
 
 The PySpark implementation covers more than basic Bronze/Silver/Gold movement:
 
-- `source_to_landing.py`
-- `landing_to_bronze.py`
-- `bronze_to_silver.py`
-- `silver_to_gold.py`
-- `ge_schema_validator.py`
-- `ge_semantic_validator.py`
-- `load_dimension.py`
-- `load_fact.py`
-- `load_hub.py`
-- `load_satellite.py`
+- `ingest_source_to_landing.py`
+- `promote_landing_to_bronze.py`
+- `promote_bronze_to_silver.py`
+- `build_gold_layer.py`
+- `validate_schema_with_great_expectations.py`
+- `validate_semantics_with_great_expectations.py`
+- `load_dimension_tables.py`
+- `load_fact_table.py`
+- `load_data_vault_hub.py`
+- `load_data_vault_satellite.py`
 
 This provides examples of medallion processing, schema validation, semantic/business-rule validation, dimensional loading, and Data Vault-style Hub/Satellite loading.
 

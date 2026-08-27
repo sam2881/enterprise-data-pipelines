@@ -112,7 +112,7 @@ def convert_ebcdic_to_utf8(
     """Convert EBCDIC file to UTF-8 using Cobrix or manual conversion."""
     print(f"[legacy_source] Converting EBCDIC: {input_path} → {output_path} (encoding={encoding})")
 
-    # The actual conversion happens in the Spark job (source_to_landing.py)
+    # The actual conversion happens in the Spark job (ingest_source_to_landing.py)
     # using Cobrix format reader. This utility stages the config.
     conversion_config = {
         "input_path": input_path,
