@@ -1,8 +1,29 @@
 # Enterprise Data Pipelines — APEX Data Engineering Runtime
 
+![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white) ![Spark](https://img.shields.io/badge/Processing-PySpark-E25A1C?logo=apachespark&logoColor=white) ![Airflow](https://img.shields.io/badge/Orchestration-Airflow-017CEE?logo=apacheairflow&logoColor=white) ![GCP](https://img.shields.io/badge/Cloud-GCP-4285F4?logo=googlecloud&logoColor=white)
+
 A portfolio implementation of a **metadata-driven enterprise Data Engineering platform** focused on reusable pipeline orchestration, distributed processing, data quality, operational controls, lineage, governance, and production-style delivery.
 
 > Built from a **Lead Data & AI Architect / Principal Data Engineer** perspective. This repository contains implementation artifacts — Airflow DAGs, reusable runtime utilities, PySpark jobs, metadata DDL, validation, observability, remediation, source adapters, and CI/CD — rather than only architecture diagrams or isolated ETL examples.
+
+## The Hiring Signal
+
+This project shows the platform decisions behind reliable data products: metadata is the control plane, DAGs stay thin, quality gates are executable, and operations include lineage, audit evidence, retries, remediation, and deployment automation.
+
+| Capability | Evidence in this repository |
+| --- | --- |
+| Reusable orchestration | Airflow runtime modules and pattern-based DAGs |
+| Distributed processing | PySpark medallion, dimensional, and Data Vault loaders |
+| Trustworthy data | Schema, semantic, and Great Expectations validation |
+| Operability | Audit logs, metrics, lineage, monitoring, and remediation |
+| Cloud delivery | GCS/Dataproc-oriented integrations and GitHub Actions |
+
+## Start Here
+
+- **[APEX runtime walkthrough](#repository-walkthrough)** — understand the implementation boundaries
+- **[Architecture principles](#architecture-principles-demonstrated)** — see the design trade-offs
+- **[End-to-end operating model](#end-to-end-operating-model)** — follow data from source to serving
+- **[Companion agent platform](https://github.com/sam2881/smart-enterprise-ai-agents)** — explore governed AI orchestration around this runtime
 
 ## What is implemented
 
