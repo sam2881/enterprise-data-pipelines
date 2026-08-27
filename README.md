@@ -6,6 +6,13 @@ A portfolio implementation of a **metadata-driven enterprise Data Engineering pl
 
 > Built from a **Lead Data & AI Architect / Principal Data Engineer** perspective. This repository contains implementation artifacts — Airflow DAGs, reusable runtime utilities, PySpark jobs, metadata DDL, validation, observability, remediation, source adapters, and CI/CD — rather than only architecture diagrams or isolated ETL examples.
 
+## What Employers Can Evaluate
+
+- **Platform design:** metadata is the control plane and DAGs remain thin.
+- **Data reliability:** schema, semantic, and Great Expectations checks are executable gates.
+- **Operational ownership:** lineage, audit evidence, retries, remediation, monitoring, and deployment automation are first-class capabilities.
+- **Hands-on depth:** reusable Python runtime modules, PySpark jobs, SQL DDL, and cloud-oriented delivery assets.
+
 ## The Hiring Signal
 
 This project shows the platform decisions behind reliable data products: metadata is the control plane, DAGs stay thin, quality gates are executable, and operations include lineage, audit evidence, retries, remediation, and deployment automation.
