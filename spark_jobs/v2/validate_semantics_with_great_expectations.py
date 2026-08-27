@@ -14,8 +14,8 @@ Validation categories:
 - Multi-column uniqueness  (composite business keys)
 
 Results are persisted to:
-- ge_validation_result   (one row per expectation)
-- ge_validation_summary  (one row per run)
+- validation_result   (one row per expectation)
+- validation_summary  (one row per run)
 with validation_type = 'SEMANTIC'.
 
 Usage (Dataproc submit):
@@ -827,7 +827,7 @@ def persist_results_jdbc(
     jdbc_props = {"driver": "org.postgresql.Driver"}
     now = datetime.now(timezone.utc).isoformat()
 
-    # -- ge_validation_result rows --
+    # -- validation_result rows --
     result_rows = []
     for r in getattr(result, "results", []):
         result_rows.append((
@@ -863,12 +863,12 @@ def persist_results_jdbc(
         result_df = spark.createDataFrame(result_rows, schema)
         result_df.write.jdbc(
             url=jdbc_url,
-            table="ge_validation_result",
+            table="validation_result",
             mode="append",
             properties=jdbc_props,
         )
 
-    # -- ge_validation_summary row --
+    # -- validation_summary row --
     summary_rows = [(
         feed_id,
         execution_id,
@@ -896,7 +896,7 @@ def persist_results_jdbc(
     summary_df = spark.createDataFrame(summary_rows, summary_schema)
     summary_df.write.jdbc(
         url=jdbc_url,
-        table="ge_validation_summary",
+        table="validation_summary",
         mode="append",
         properties=jdbc_props,
     )

@@ -542,11 +542,11 @@ def validate_silver_zone(**context):
         context["ti"].xcom_push(key="silver_validation_passed", value=all_passed)
         context["ti"].xcom_push(key="silver_quality_score", value=quality_score)
 
-        # Write validation results to ge_validation_result table
+        # Write validation results to validation_result table
         with metadata.conn.cursor() as cur:
             for vr in validation_results:
                 cur.execute("""
-                    INSERT INTO ge_validation_result (
+                    INSERT INTO validation_result (
                         feed_id, run_id, validation_type, zone_level,
                         expectation_type, result, column_name,
                         element_count, error_count, severity

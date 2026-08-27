@@ -62,8 +62,8 @@ logger = logging.getLogger("ge_schema_validator")
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
-VALIDATION_RESULT_TABLE = "ge_validation_result"
-VALIDATION_SUMMARY_TABLE = "ge_validation_summary"
+VALIDATION_RESULT_TABLE = "validation_result"
+VALIDATION_SUMMARY_TABLE = "validation_summary"
 
 RESULT_SCHEMA = StructType(
     [

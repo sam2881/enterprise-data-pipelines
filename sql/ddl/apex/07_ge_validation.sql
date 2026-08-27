@@ -6,7 +6,7 @@
 -- =============================================================================
 
 -- Per-expectation results (one row per rule per run)
-CREATE TABLE IF NOT EXISTS ge_validation_result (
+CREATE TABLE IF NOT EXISTS validation_result (
     result_id       UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     feed_id         VARCHAR(200) NOT NULL,
     run_id          VARCHAR(200) NOT NULL,
@@ -31,12 +31,12 @@ CREATE TABLE IF NOT EXISTS ge_validation_result (
 );
 
 CREATE INDEX IF NOT EXISTS idx_ge_result_feed_run
-    ON ge_validation_result(feed_id, run_id);
+    ON validation_result(feed_id, run_id);
 CREATE INDEX IF NOT EXISTS idx_ge_result_created
-    ON ge_validation_result(created_at);
+    ON validation_result(created_at);
 
 -- Per-run summary (one row per checkpoint execution)
-CREATE TABLE IF NOT EXISTS ge_validation_summary (
+CREATE TABLE IF NOT EXISTS validation_summary (
     summary_id      UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     feed_id         VARCHAR(200) NOT NULL,
     run_id          VARCHAR(200) NOT NULL,
@@ -56,4 +56,4 @@ CREATE TABLE IF NOT EXISTS ge_validation_summary (
 );
 
 CREATE INDEX IF NOT EXISTS idx_ge_summary_feed_run
-    ON ge_validation_summary(feed_id, run_id);
+    ON validation_summary(feed_id, run_id);
