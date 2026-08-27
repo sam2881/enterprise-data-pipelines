@@ -25,6 +25,8 @@ This project shows the platform decisions behind reliable data products: metadat
 - **[End-to-end operating model](#end-to-end-operating-model)** — follow data from source to serving
 - **[Companion agent platform](https://github.com/sam2881/smart-enterprise-ai-agents)** — explore governed AI orchestration around this runtime
 
+**Data layer standard:** `RAW` → `TRANSIENT` → `BRONZE` → `SILVER` → `GOLD`, with `GOLD` as the analytics-ready serving layer.
+
 ## What is implemented
 
 The repository implements an APEX-style data pipeline runtime with a deliberate separation between orchestration and reusable business/runtime logic.

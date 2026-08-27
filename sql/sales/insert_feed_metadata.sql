@@ -134,9 +134,9 @@ INSERT INTO zone_configurations (
 ) VALUES
     (4001, 1001, 'raw', 'raw_sales', 'sales_daily_raw', 'append',
      '{"partition_column": "ingestion_date", "partition_type": "DAY"}'::jsonb, TRUE, NOW()),
-    (4002, 1001, 'refined', 'refined_sales', 'sales_daily_refined', 'append',
+    (4002, 1001, 'silver', 'silver_sales', 'sales_daily_silver', 'append',
      '{"partition_column": "transaction_date", "partition_type": "DAY"}'::jsonb, TRUE, NOW()),
-    (4003, 1001, 'trusted', 'trusted_sales', 'sales_daily_trusted', 'merge',
+    (4003, 1001, 'gold', 'gold_sales', 'sales_daily_gold', 'merge',
      '{"partition_column": "transaction_date", "partition_type": "DAY"}'::jsonb, TRUE, NOW())
 ON CONFLICT (zone_config_id) DO UPDATE SET
     dataset_name = EXCLUDED.dataset_name,
@@ -162,9 +162,9 @@ INSERT INTO quality_rules (
      '{"min": 1}'::jsonb, 'ERROR', TRUE, NOW()),
     (5003, 1001, 'raw', 'unit_price_positive', 'range', 'unit_price',
      '{"min": 0.01}'::jsonb, 'ERROR', TRUE, NOW()),
-    (5004, 1001, 'refined', 'customer_id_not_null', 'not_null', 'customer_id',
+    (5004, 1001, 'silver', 'customer_id_not_null', 'not_null', 'customer_id',
      '{}'::jsonb, 'ERROR', TRUE, NOW()),
-    (5005, 1001, 'refined', 'transaction_id_unique', 'unique', 'transaction_id',
+    (5005, 1001, 'silver', 'transaction_id_unique', 'unique', 'transaction_id',
      '{}'::jsonb, 'ERROR', TRUE, NOW())
 ON CONFLICT (rule_id) DO UPDATE SET
     rule_config = EXCLUDED.rule_config,
@@ -206,7 +206,7 @@ INSERT INTO platform_audit_log (
     '{
         "dag_id": "sales_daily_pipeline",
         "pattern_code": "P01",
-        "zones": ["raw", "refined", "trusted"],
+        "zones": ["raw", "silver", "gold"],
         "generated_by": "APEX Data Agent v2.0"
     }'::jsonb,
     'apex-data-agent',

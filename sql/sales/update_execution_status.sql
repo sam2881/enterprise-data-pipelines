@@ -189,7 +189,7 @@ $$ LANGUAGE plpgsql;
 -- Example usage (called by DAG):
 -- SELECT update_pipeline_execution(1001, 'sales_daily_pipeline_manual__2026-02-05', '20260205', 'running');
 -- SELECT record_zone_metrics(1001, 'sales_daily_pipeline_manual__2026-02-05', 'raw', 10000, 10000, 0, TRUE, 1.0);
--- SELECT record_zone_metrics(1001, 'sales_daily_pipeline_manual__2026-02-05', 'refined', 10000, 9800, 200, TRUE, 0.98);
--- SELECT record_zone_metrics(1001, 'sales_daily_pipeline_manual__2026-02-05', 'trusted', 9800, 9800, 0, TRUE, 1.0);
+-- SELECT record_zone_metrics(1001, 'sales_daily_pipeline_manual__2026-02-05', 'silver', 10000, 9800, 200, TRUE, 0.98);
+-- SELECT record_zone_metrics(1001, 'sales_daily_pipeline_manual__2026-02-05', 'gold', 9800, 9800, 0, TRUE, 1.0);
 -- SELECT update_pipeline_execution(1001, 'sales_daily_pipeline_manual__2026-02-05', '20260205', 'success', 9800, 200, 0.98);
 -- SELECT calculate_health_score(1001, 'sales_daily_pipeline_manual__2026-02-05');
